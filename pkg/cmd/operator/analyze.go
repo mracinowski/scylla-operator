@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/scylladb/scylla-operator/pkg/analyze/client"
 	"github.com/scylladb/scylla-operator/pkg/genericclioptions"
 	"github.com/scylladb/scylla-operator/pkg/version"
 	"github.com/spf13/cobra"
@@ -107,6 +108,14 @@ func (o *AnalyzeOptions) Complete() error {
 func (o *AnalyzeOptions) Run(streams genericclioptions.IOStreams, cmd *cobra.Command) error {
 	klog.Infof("%s version %s", cmd.Name(), version.Get())
 	cliflag.PrintFlags(cmd.Flags())
+
+	if len(o.Kubeconfig) != 0 {
+		err := client.Start(o.ClientConfig)
+
+		if err != nil {
+			return err
+		}
+	}
 
 	return nil
 }
