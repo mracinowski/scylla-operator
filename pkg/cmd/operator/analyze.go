@@ -1,17 +1,20 @@
 package operator
 
 import (
+	"context"
 	"errors"
 	"fmt"
-	"os"
-
+	"github.com/scylladb/scylla-operator/pkg/analyze"
+	scyllaversioned "github.com/scylladb/scylla-operator/pkg/client/scylla/clientset/versioned"
 	"github.com/scylladb/scylla-operator/pkg/genericclioptions"
 	"github.com/scylladb/scylla-operator/pkg/version"
 	"github.com/spf13/cobra"
 	apierrors "k8s.io/apimachinery/pkg/util/errors"
+	"k8s.io/client-go/kubernetes"
 	cliflag "k8s.io/component-base/cli/flag"
 	"k8s.io/klog/v2"
 	"k8s.io/kubectl/pkg/util/templates"
+	"os"
 )
 
 var (
@@ -26,6 +29,9 @@ type AnalyzeOptions struct {
 	genericclioptions.ClientConfig
 
 	ArchivePath string
+
+	kubeClient   *kubernetes.Clientset
+	scyllaClient *scyllaversioned.Clientset
 }
 
 func NewAnalyzeOptions(streams genericclioptions.IOStreams) *AnalyzeOptions {
@@ -77,7 +83,7 @@ func (o *AnalyzeOptions) Validate() error {
 
 	errs = append(errs, o.ClientConfig.Validate())
 
-	if len(o.ArchivePath) > 0 {
+	if o.IsArchivePathSet() {
 		_, err := os.Stat(o.ArchivePath)
 		if err != nil {
 			if errors.Is(err, os.ErrNotExist) {
@@ -88,7 +94,7 @@ func (o *AnalyzeOptions) Validate() error {
 		}
 	}
 
-	if len(o.Kubeconfig) != 0 && len(o.ArchivePath) != 0 {
+	if len(o.Kubeconfig) != 0 && o.IsArchivePathSet() {
 		errs = append(errs, fmt.Errorf("kubeconfig and archive-path can't both be set"))
 	}
 
@@ -101,12 +107,47 @@ func (o *AnalyzeOptions) Complete() error {
 		return err
 	}
 
+	o.kubeClient, err = kubernetes.NewForConfig(o.ProtoConfig)
+	if err != nil {
+		return fmt.Errorf("can't build kubernetes clientset: %w", err)
+	}
+	o.scyllaClient, err = scyllaversioned.NewForConfig(o.RestConfig)
+	if err != nil {
+		return fmt.Errorf("can't build scylla clientset: %w", err)
+	}
+
 	return nil
+}
+
+func (o *AnalyzeOptions) IsArchivePathSet() bool {
+	return len(o.ArchivePath) != 0
 }
 
 func (o *AnalyzeOptions) Run(streams genericclioptions.IOStreams, cmd *cobra.Command) error {
 	klog.Infof("%s version %s", cmd.Name(), version.Get())
 	cliflag.PrintFlags(cmd.Flags())
 
-	return nil
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	var (
+		ds  analyze.DataSource
+		err error
+	)
+	if o.IsArchivePathSet() {
+		klog.Info("Archive path set")
+		ds, err = analyze.DataSource{}, errors.ErrUnsupported
+	} else {
+		klog.Info("Archive path not set")
+		ds, err = analyze.NewDataSourceFromClients(ctx, o.kubeClient, o.scyllaClient)
+	}
+
+	if err != nil {
+		return err
+	}
+
+	analyzer := analyze.NewResourceDumpAnalyzer(ds)
+	// Shutdown is called before context is canceled.
+	defer analyzer.Shutdown()
+	return analyzer.Run()
 }
