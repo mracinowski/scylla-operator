@@ -126,6 +126,7 @@ func (o *AnalyzeOptions) Run(streams genericclioptions.IOStreams, cmd *cobra.Com
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	var ds *analyze.DataSource
 	var err error
 	if len(o.ArchivePath) > 0 {
 		_, err = analyze.DataSource{}, errors.New("must-gather archives are currently unsupported")
@@ -133,11 +134,14 @@ func (o *AnalyzeOptions) Run(streams genericclioptions.IOStreams, cmd *cobra.Com
 			return fmt.Errorf("can't build data source from must-gather: %w", err)
 		}
 	} else {
-		_, err = analyze.NewDataSourceFromClients(ctx, o.kubeClient, o.scyllaClient)
+		ds, err = analyze.NewDataSourceFromClients(ctx, o.kubeClient, o.scyllaClient)
 		if err != nil {
 			return fmt.Errorf("can't build data source from clients: %w", err)
 		}
 	}
+
+	analyze.CheckOperatorPodsExist(ds)
+	analyze.CheckStorageClassMissing(ds)
 
 	return nil
 }
