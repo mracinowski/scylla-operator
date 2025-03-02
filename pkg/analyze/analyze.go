@@ -2,12 +2,13 @@ package analyze
 
 import (
 	"context"
+	"runtime"
+
 	"github.com/scylladb/scylla-operator/pkg/analyze/front"
 	"github.com/scylladb/scylla-operator/pkg/analyze/sources"
 	"github.com/scylladb/scylla-operator/pkg/analyze/symptoms"
 	"github.com/scylladb/scylla-operator/pkg/analyze/symptoms/rules"
 	"k8s.io/klog/v2"
-	"runtime"
 )
 
 func Analyze(ctx context.Context, ds *sources.DataSource2) error {
@@ -35,7 +36,7 @@ func Analyze(ctx context.Context, ds *sources.DataSource2) error {
 			}
 			if status.Issues != nil {
 				for _, issue := range status.Issues {
-					err := front.Print([]front.Diagnosis{front.NewDiagnosis(issue.Symptom, issue.Resources)})
+					err := front.Print(issue, false)
 					if err != nil {
 						klog.Warningf("can't print diagnosis: %v", err)
 					}
