@@ -8,8 +8,8 @@ import (
 
 type builder struct {
 	resources   map[string]reflect.Type
-	constraints map[string][]*constraint
-	assertion   map[string]*predicate
+	constraints map[string]*predicate
+	assertions  map[string]*predicate
 	relations   []*relation
 }
 
@@ -20,8 +20,8 @@ func Type[T any]() reflect.Type {
 func Select(label string, typ reflect.Type) *builder {
 	return (&builder{
 		resources:   make(map[string]reflect.Type),
-		constraints: make(map[string][]*constraint),
-		assertion:   make(map[string]*predicate),
+		constraints: make(map[string]*predicate),
+		assertions:  make(map[string]*predicate),
 		relations:   make([]*relation, 0),
 	}).Select(label, typ)
 }
@@ -42,12 +42,16 @@ func (b *builder) Filter(label string, f any) *builder {
 		panic("TODO: Handle undefined labels in Filter")
 	}
 
-	constraint := newConstraint(label, f)
+	constraint := newPredicate(label, f)
 	if constraint.Labels()[label] != typ {
 		panic("TODO: Handle mismatched type in Filter")
 	}
 
-	b.constraints[label] = append(b.constraints[label], constraint)
+	if _, defined := b.constraints[label]; defined {
+		panic("TODO: Constraint already defined for field")
+	}
+
+	b.constraints[label] = constraint
 
 	return b
 }
@@ -63,7 +67,11 @@ func (b *builder) Assert(label string, f any) *builder {
 		panic("TODO: Handle mismatched type in Assert")
 	}
 
-	b.assertion[label] = assertion
+	if _, defined := b.assertions[label]; defined {
+		panic("TODO: Constraint already defined for field")
+	}
+
+	b.assertions[label] = assertion
 
 	return b
 }
@@ -86,7 +94,7 @@ func (b *builder) Collect(limit int) func(snapshot.Snapshot) []map[string]any {
 	executor := newExecutor(
 		b.resources,
 		b.constraints,
-		b.assertion,
+		b.assertions,
 		b.relations,
 	)
 
@@ -118,7 +126,7 @@ func (b *builder) ForEach(labels []string, function any) func(snapshot.Snapshot)
 	executor := newExecutor(
 		b.resources,
 		b.constraints,
-		b.assertion,
+		b.assertions,
 		b.relations,
 	)
 
@@ -144,7 +152,7 @@ func (b *builder) Any() func(snapshot.Snapshot) bool {
 	executor := newExecutor(
 		b.resources,
 		b.constraints,
-		b.assertion,
+		b.assertions,
 		b.relations,
 	)
 
