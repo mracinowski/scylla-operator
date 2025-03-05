@@ -2,16 +2,22 @@ package rules
 
 import (
 	"errors"
+	"fmt"
 	"github.com/scylladb/scylla-operator/pkg/analyze/selectors"
 	"github.com/scylladb/scylla-operator/pkg/analyze/symptoms"
 	scyllav1 "github.com/scylladb/scylla-operator/pkg/api/scylla/v1"
 	scyllav1alpha1 "github.com/scylladb/scylla-operator/pkg/api/scylla/v1alpha1"
 	v1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
+	"regexp"
 	"strings"
 )
 
-const csiDriverContainerName = "local-csi-driver"
+const (
+	csiDriverContainerName                     = "local-csi-driver"
+	nodeConfigConditionPattern                 = "NodeSetup(?P<node>.*)Degraded"
+	nodeConfigNonexistentVolumeMessageFragment = "resolve RAID device"
+)
 
 var StorageSymptoms = symptoms.NewSymptomSet("storage", []*symptoms.SymptomSet{
 	buildLocalCsiDriverMissingSymptoms(),
@@ -183,8 +189,8 @@ func buildStorageClassMissingSymptoms() *symptoms.SymptomSet {
 
 func buildNodeConfigSymptoms() *symptoms.SymptomSet {
 	// Scenario #4: E2Es for misconfigured NodeConfigs
-	nodeConfigNonexistentVolume := symptoms.NewSymptomWithManyDiagSug(
-		"NodeConfig is misconfigured",
+	nodeConfigClusterWideNonexistentVolume := symptoms.NewSymptomWithManyDiagSug(
+		"NodeConfig doesn't provision storage for local-csi-driver's volumes-dir",
 		[]string{
 			"driver is unable to provide storage due to NodeConfig being misconfigured",
 			"this may be false-positive in clusters which don't use NodeConfig to mount `volumes-dir` of local-csi-drivers' Pods",
@@ -254,6 +260,10 @@ func buildNodeConfigSymptoms() *symptoms.SymptomSet {
 			Relate("storage-class", "csi-driver", func(s *storagev1.StorageClass, csi *storagev1.CSIDriver) bool {
 				return s.Provisioner == csi.Name
 			}).
+			Relate("scylla-node", "scylla-cluster", func(n *v1.Node, c *scyllav1.ScyllaCluster) bool {
+				// TODO: relate the node to the cluster (with node placement rules?)
+				return true
+			}).
 			Relate("node-config", "scylla-node", func(nc *scyllav1alpha1.NodeConfig, n *v1.Node) bool {
 				return symptoms.MeetsNodeSelectorPlacementRules(n, nc.Spec.Placement.NodeSelector)
 			}).
@@ -269,23 +279,72 @@ func buildNodeConfigSymptoms() *symptoms.SymptomSet {
 				if !matchesPod {
 					return false
 				}
-				for _, vol := range csiPod.Spec.Volumes {
-					if vol.Name == "volumes-dir" {
-						for _, mp := range nodeConfig.Spec.LocalDiskSetup.Mounts {
-							if (*vol.HostPath).Path == mp.MountPoint {
-								dirsMounted = true
+				volumesDir := ""
+				volumesMountPoint := ""
+				for _, container := range csiPod.Spec.Containers {
+					csiContainer := false
+					for _, arg := range container.Args {
+						if strings.Contains(arg, "--volumes-dir=") {
+							volumesDir = strings.Split(arg, "--volumes-dir=")[1]
+							volumesDir = strings.TrimSpace(volumesDir)
+							csiContainer = true
+						}
+					}
+					if csiContainer {
+						for _, mnt := range container.VolumeMounts {
+							if mnt.MountPath == volumesDir {
+								volumesMountPoint = mnt.Name
 							}
 						}
 					}
 				}
+
+				if volumesMountPoint != "" {
+					for _, vol := range csiPod.Spec.Volumes {
+						if vol.Name == volumesMountPoint {
+							for _, mp := range nodeConfig.Spec.LocalDiskSetup.Mounts {
+								if (*vol.HostPath).Path == mp.MountPoint {
+									dirsMounted = true
+								}
+							}
+						}
+					}
+				}
+
 				return !dirsMounted
 			}).
 			Collect(symptoms.DefaultLimit))
 
-	miscSymptoms := symptoms.NewEmptySymptomSet("Miscellaneous")
-	err := miscSymptoms.Add(&nodeConfigNonexistentVolume)
-	if err != nil {
-		panic(errors.New("failed to create MiscellaneousStorageClass symptom" + err.Error()))
-	}
-	return &miscSymptoms
+	nodeConfigNonexistentDevice := symptoms.NewSymptom(
+		"NodeConfig non-existent device condition",
+		"NodeConfig configured with a non-existent device",
+		"fix NodeConfig",
+		selectors.
+			Select("node-config", selectors.Type[*scyllav1alpha1.NodeConfig]()).
+			Filter("node-config", func(nc *scyllav1alpha1.NodeConfig) bool {
+				if nc == nil {
+					return false
+				}
+				r := regexp.MustCompile(nodeConfigConditionPattern)
+				for _, cond := range nc.Status.Conditions {
+					t := fmt.Sprintf("%v", cond)
+					match := r.FindStringSubmatch(t)
+					if len(match) == 0 {
+						continue
+					}
+					if cond.Status != v1.ConditionTrue {
+						continue
+					}
+					if strings.Contains(cond.Message, nodeConfigNonexistentVolumeMessageFragment) {
+						return true
+					}
+				}
+				return false
+			}).
+			Collect(symptoms.DefaultLimit))
+
+	symptomSet := symptoms.NewEmptySymptomSet("NodeConfig errors")
+	symptomSet.MustAdd(&nodeConfigClusterWideNonexistentVolume)
+	symptomSet.MustAdd(&nodeConfigNonexistentDevice)
+	return &symptomSet
 }

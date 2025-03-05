@@ -126,6 +126,7 @@ type SymptomSet interface {
 	SetParent(*SymptomSet)
 
 	Add(*Symptom) error
+	MustAdd(*Symptom)
 	AddChild(*SymptomSet) error
 }
 
@@ -187,6 +188,14 @@ func (s *symptomSet) Add(ss *Symptom) error {
 	}
 	s.symptoms[(*ss).Name()] = ss
 	return nil
+}
+
+func (s *symptomSet) MustAdd(ss *Symptom) {
+	err := s.Add(ss)
+	if err != nil {
+		klog.Errorf("can't add symptom to %s: %v", s.Name(), err)
+		panic(err)
+	}
 }
 
 func (s *symptomSet) AddChild(ss *SymptomSet) error {
