@@ -23,13 +23,17 @@ type symptom struct {
 	selector    func(snapshot.Snapshot) []map[string]any
 }
 
-func NewSymptom(name string, diag string, suggestions string, selector func(snapshot.Snapshot) []map[string]any) Symptom {
+func NewSymptomWithManyDiagSug(name string, diagnoses, suggestions []string, selector func(snapshot.Snapshot) []map[string]any) Symptom {
 	return &symptom{
 		name:        name,
-		diagnoses:   []string{diag},
-		suggestions: []string{suggestions},
+		diagnoses:   diagnoses,
+		suggestions: suggestions,
 		selector:    selector,
 	}
+}
+
+func NewSymptom(name string, diag string, suggestions string, selector func(snapshot.Snapshot) []map[string]any) Symptom {
+	return NewSymptomWithManyDiagSug(name, []string{diag}, []string{suggestions}, selector)
 }
 
 func (s *symptom) Name() string {
@@ -122,6 +126,7 @@ type SymptomSet interface {
 	SetParent(*SymptomSet)
 
 	Add(*Symptom) error
+	MustAdd(*Symptom)
 	AddChild(*SymptomSet) error
 }
 
@@ -183,6 +188,14 @@ func (s *symptomSet) Add(ss *Symptom) error {
 	}
 	s.symptoms[(*ss).Name()] = ss
 	return nil
+}
+
+func (s *symptomSet) MustAdd(ss *Symptom) {
+	err := s.Add(ss)
+	if err != nil {
+		klog.Errorf("can't add symptom to %s: %v", s.Name(), err)
+		panic(err)
+	}
 }
 
 func (s *symptomSet) AddChild(ss *SymptomSet) error {
