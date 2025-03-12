@@ -2,7 +2,20 @@ package rules
 
 import "github.com/scylladb/scylla-operator/pkg/analyze/symptoms"
 
-var Symptoms = symptoms.NewSymptomSet("root", []*symptoms.SymptomSet{
-	&StorageSymptoms,
-	&DummySymptoms,
-})
+var symptomSlices = [][]symptoms.SymptomTreeNode{
+	StorageSymptoms,
+	DummySymptoms,
+}
+
+var Symptoms []symptoms.SymptomTreeNode
+
+var SymptomTests = []symptoms.SymptomTreeNode{
+	OrTestTree(),
+	AndTestTree(),
+}
+
+func init() {
+	for _, s := range symptomSlices {
+		Symptoms = append(Symptoms, s...)
+	}
+}

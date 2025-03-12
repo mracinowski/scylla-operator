@@ -114,88 +114,184 @@ func (s *symptom) Match(ds snapshot.Snapshot) ([]Issue, error) {
 //	return m.symptoms
 //}
 
-type SymptomSet interface {
+type conditionHandler func(*MatchWorkerPool, Symptom, int, chan JobStatus, chan JobStatus)
+
+type SymptomTreeNode interface {
 	Name() string
-	Symptoms() map[string]*Symptom
-	DerivedSets() map[string]*SymptomSet
-	Parent() *SymptomSet
-	SetParent(*SymptomSet)
+	Symptom() Symptom
+	Parent() *SymptomTreeNode
+	SetParent(*SymptomTreeNode)
+	Handler() conditionHandler
+	IsLeaf() bool
 
-	Add(*Symptom) error
-	AddChild(*SymptomSet) error
+	Children() map[string]SymptomTreeNode
+	AddChild(SymptomTreeNode) error
 }
 
-type symptomSet struct {
+type symptomTreeNode struct {
 	name     string
-	parent   *SymptomSet
-	symptoms map[string]*Symptom
-	children map[string]*SymptomSet
+	parent   *SymptomTreeNode
+	symptom  Symptom
+	leaf     bool
+	children map[string]SymptomTreeNode
+	handler  conditionHandler
 }
 
-func NewEmptySymptomSet(name string) SymptomSet {
-	return &symptomSet{
+func NewSymptomTreeLeaf(name string, symptom Symptom) SymptomTreeNode {
+	return &symptomTreeNode{
 		name:     name,
+		symptom:  symptom,
 		parent:   nil,
-		symptoms: make(map[string]*Symptom),
-		children: make(map[string]*SymptomSet),
+		children: nil,
+		handler:  nil,
+		leaf:     true,
 	}
 }
 
-func NewSymptomSet(name string, children []*SymptomSet) SymptomSet {
-	ss := NewEmptySymptomSet(name)
-	for _, subset := range children {
-		err := ss.AddChild(subset)
+func NewSymptomTreeNode(name string, symptom Symptom, handler conditionHandler) SymptomTreeNode {
+	return &symptomTreeNode{
+		name:     name,
+		symptom:  symptom,
+		parent:   nil,
+		children: make(map[string]SymptomTreeNode),
+		handler:  handler,
+		leaf:     false,
+	}
+}
+
+func NewSymptomTreeNodeWithChildren(name string, symptom Symptom, handler conditionHandler, children ...SymptomTreeNode) SymptomTreeNode {
+	node := symptomTreeNode{
+		name:     name,
+		symptom:  symptom,
+		parent:   nil,
+		children: make(map[string]SymptomTreeNode),
+		handler:  handler,
+		leaf:     false,
+	}
+
+	for _, c := range children {
+		err := node.AddChild(c)
 		if err != nil {
-			klog.Warningf("can't add child symptoms for set %s: %v", name, err)
+			klog.Warningf("can't add child symptoms for set %s: %v, name, err")
 			return nil
 		}
 	}
-	return ss
+	return &node
 }
 
-func (s *symptomSet) Name() string {
+func (s *symptomTreeNode) Name() string {
 	return s.name
 }
 
-func (s *symptomSet) Symptoms() map[string]*Symptom {
-	return s.symptoms
+func (s *symptomTreeNode) Symptom() Symptom {
+	return s.symptom
 }
 
-func (s *symptomSet) DerivedSets() map[string]*SymptomSet {
+func (s *symptomTreeNode) Children() map[string]SymptomTreeNode {
 	return s.children
 }
 
-func (s *symptomSet) Parent() *SymptomSet {
+func (s *symptomTreeNode) Parent() *SymptomTreeNode {
 	return s.parent
 }
 
-func (s *symptomSet) SetParent(parent *SymptomSet) {
+func (s *symptomTreeNode) SetParent(parent *SymptomTreeNode) {
 	s.parent = parent
 }
 
-func (s *symptomSet) Add(ss *Symptom) error {
-	if ss == nil {
-		return errors.New("symptom is nil")
+func (s *symptomTreeNode) Handler() conditionHandler {
+	return s.handler
+}
+
+func (s *symptomTreeNode) IsLeaf() bool {
+	return s.leaf
+}
+
+func (s *symptomTreeNode) AddChild(c SymptomTreeNode) error {
+	if c == nil {
+		return errors.New("SymptomTreeNode is nil")
 	}
-	_, isIn := s.symptoms[(*ss).Name()]
+	_, isIn := s.children[c.Name()]
 	if isIn {
-		return errors.New("symptom already exists")
+		return errors.New(fmt.Sprintf("symptom already exists: %v", c))
 	}
-	s.symptoms[(*ss).Name()] = ss
+	s.children[c.Name()] = c
+
+	var thisAsInterface SymptomTreeNode = s
+	c.SetParent(&thisAsInterface)
 	return nil
 }
 
-func (s *symptomSet) AddChild(ss *SymptomSet) error {
-	if ss == nil {
-		return errors.New("symptomSet is nil")
+// Chyba useless
+func TrueCondition(w *MatchWorkerPool, symptom Symptom, children int, recv chan JobStatus, send chan JobStatus) {
+	w.EnqueueNode(symptom, send, nil)
+	for range children {
+		_ = <-recv
 	}
-	_, isIn := s.children[(*ss).Name()]
-	if isIn {
-		return errors.New(fmt.Sprintf("symptom already exists: %v", ss))
-	}
-	s.children[(*ss).Name()] = ss
+	close(recv)
+}
 
-	var thisAsInterface SymptomSet = s
-	(*ss).SetParent(&thisAsInterface)
-	return nil
+func OrConditionPropagateFirst(w *MatchWorkerPool, symptom Symptom, children int, recv chan JobStatus, send chan JobStatus) {
+	enqueued := false
+	for i := 0; i < children; i++ {
+		jobStatus := <-recv
+		if jobStatus.matched() && !enqueued {
+			w.EnqueueNode(symptom, send, jobStatus.Issues)
+			enqueued = true
+		}
+	}
+	if !enqueued {
+		send <- JobStatus{
+			Job:       nil,
+			Error:     nil,
+			Issues:    make([]Issue, 0),
+			SubIssues: make([]Issue, 0),
+		}
+	}
+
+	close(recv)
+}
+
+func OrConditionPropagateAll(w *MatchWorkerPool, symptom Symptom, children int, recv chan JobStatus, send chan JobStatus) {
+	matched := false
+	subIssues := make([]Issue, 0)
+	for i := 0; i < children; i++ {
+		jobStatus := <-recv
+		subIssues = append(subIssues, jobStatus.Issues...)
+		if jobStatus.matched() {
+			matched = true
+		}
+	}
+	if matched {
+		w.EnqueueNode(symptom, send, subIssues)
+	} else {
+		send <- JobStatus{
+			Job:       nil,
+			Error:     nil,
+			Issues:    make([]Issue, 0),
+			SubIssues: make([]Issue, 0),
+		}
+	}
+
+	close(recv)
+}
+
+func AndCondition(w *MatchWorkerPool, symptom Symptom, children int, recv chan JobStatus, send chan JobStatus) {
+	msgSend := false
+	subIssues := make([]Issue, 0)
+	for i := 0; i < children; i++ {
+		jobStatus := <-recv
+		subIssues = append(subIssues, jobStatus.Issues...)
+		if !jobStatus.matched() && !msgSend {
+			jobStatus.SubIssues = append(jobStatus.Issues, jobStatus.SubIssues...)
+			jobStatus.Issues = make([]Issue, 0)
+			send <- jobStatus
+			msgSend = true
+		}
+	}
+	if !msgSend {
+		w.EnqueueNode(symptom, send, subIssues)
+	}
+
+	close(recv)
 }

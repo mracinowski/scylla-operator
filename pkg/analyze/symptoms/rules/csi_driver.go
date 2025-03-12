@@ -1,7 +1,6 @@
 package rules
 
 import (
-	"errors"
 	"github.com/scylladb/scylla-operator/pkg/analyze/selectors"
 	"github.com/scylladb/scylla-operator/pkg/analyze/symptoms"
 	scyllav1 "github.com/scylladb/scylla-operator/pkg/api/scylla/v1"
@@ -9,12 +8,12 @@ import (
 	storagev1 "k8s.io/api/storage/v1"
 )
 
-var StorageSymptoms = symptoms.NewSymptomSet("storage", []*symptoms.SymptomSet{
+var StorageSymptoms = []symptoms.SymptomTreeNode{
 	buildLocalCsiDriverMissingSymptoms(),
 	buildStorageClassMissingSymptoms(),
-})
+}
 
-func buildLocalCsiDriverMissingSymptoms() *symptoms.SymptomSet {
+func buildLocalCsiDriverMissingSymptoms() symptoms.SymptomTreeNode {
 	// Scenario #2: local-csi-driver CSIDriver, referenced by scylladb-local-xfs StorageClass, is missing
 	csiDriverMissing := symptoms.NewSymptom("CSIDriver is missing",
 		"%[csi-driver.Name]% CSIDriver, referenced by %[storage-class.Name]% StorageClass, is missing",
@@ -45,15 +44,11 @@ func buildLocalCsiDriverMissingSymptoms() *symptoms.SymptomSet {
 			}).
 			Collect(symptoms.DefaultLimit))
 
-	csiDriverMissingSymptoms := symptoms.NewEmptySymptomSet("csi-driver-missing")
-	err := csiDriverMissingSymptoms.Add(&csiDriverMissing)
-	if err != nil {
-		panic(errors.New("failed to create csiDriverMissing symptom" + err.Error()))
-	}
-	return &csiDriverMissingSymptoms
+	csiDriverMissingSymptoms := symptoms.NewSymptomTreeLeaf("csi-driver-missing", csiDriverMissing)
+	return csiDriverMissingSymptoms
 }
 
-func buildStorageClassMissingSymptoms() *symptoms.SymptomSet {
+func buildStorageClassMissingSymptoms() symptoms.SymptomTreeNode {
 	// Scenario #1: scylladb-local-xfs StorageClass used by a ScyllaCluster is missing
 	notDeployedStorageClass := symptoms.NewSymptom("StorageClass is missing",
 		"%[storage-class.Name]% StorageClass used by a ScyllaCluster is missing",
@@ -109,10 +104,6 @@ func buildStorageClassMissingSymptoms() *symptoms.SymptomSet {
 			}).
 			Collect(symptoms.DefaultLimit))
 
-	storageClassMissingSymptoms := symptoms.NewEmptySymptomSet("StorageClass missing")
-	err := storageClassMissingSymptoms.Add(&notDeployedStorageClass)
-	if err != nil {
-		panic(errors.New("failed to create storageClassMissingSymptoms symptom" + err.Error()))
-	}
-	return &storageClassMissingSymptoms
+	storageClassMissingSymptoms := symptoms.NewSymptomTreeLeaf("StorageClass missing", notDeployedStorageClass)
+	return storageClassMissingSymptoms
 }
