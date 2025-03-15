@@ -123,6 +123,7 @@ type SymptomTreeNode interface {
 	SetParent(*SymptomTreeNode)
 	Handler() conditionHandler
 	IsLeaf() bool
+	ConditionMet(int) bool
 
 	Children() map[string]SymptomTreeNode
 	AddChild(SymptomTreeNode) error
@@ -205,6 +206,10 @@ func (s *symptomTreeNode) Handler() conditionHandler {
 
 func (s *symptomTreeNode) IsLeaf() bool {
 	return s.leaf
+}
+
+func (s *symptomTreeNode) ConditionMet(matched int) bool {
+	return true;
 }
 
 func (s *symptomTreeNode) AddChild(c SymptomTreeNode) error {
