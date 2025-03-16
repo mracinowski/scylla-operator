@@ -114,14 +114,13 @@ func (s *symptom) Match(ds snapshot.Snapshot) ([]Issue, error) {
 //	return m.symptoms
 //}
 
-type conditionHandler func(*MatchWorkerPool, Symptom, int, chan JobStatus, chan JobStatus)
+type conditionCallback func(SymptomTreeNode, int) bool
 
 type SymptomTreeNode interface {
 	Name() string
 	Symptom() Symptom
 	Parent() *SymptomTreeNode
 	SetParent(*SymptomTreeNode)
-	Handler() conditionHandler
 	IsLeaf() bool
 	ConditionMet(int) bool
 
@@ -135,7 +134,7 @@ type symptomTreeNode struct {
 	symptom  Symptom
 	leaf     bool
 	children map[string]SymptomTreeNode
-	handler  conditionHandler
+	callback conditionCallback
 }
 
 func NewSymptomTreeLeaf(name string, symptom Symptom) SymptomTreeNode {
@@ -144,29 +143,29 @@ func NewSymptomTreeLeaf(name string, symptom Symptom) SymptomTreeNode {
 		symptom:  symptom,
 		parent:   nil,
 		children: nil,
-		handler:  nil,
+		callback:  nil,
 		leaf:     true,
 	}
 }
 
-func NewSymptomTreeNode(name string, symptom Symptom, handler conditionHandler) SymptomTreeNode {
+func NewSymptomTreeNode(name string, symptom Symptom, callback conditionCallback) SymptomTreeNode {
 	return &symptomTreeNode{
 		name:     name,
 		symptom:  symptom,
 		parent:   nil,
 		children: make(map[string]SymptomTreeNode),
-		handler:  handler,
+		callback: callback,
 		leaf:     false,
 	}
 }
 
-func NewSymptomTreeNodeWithChildren(name string, symptom Symptom, handler conditionHandler, children ...SymptomTreeNode) SymptomTreeNode {
+func NewSymptomTreeNodeWithChildren(name string, symptom Symptom, callback conditionCallback, children ...SymptomTreeNode) SymptomTreeNode {
 	node := symptomTreeNode{
 		name:     name,
 		symptom:  symptom,
 		parent:   nil,
 		children: make(map[string]SymptomTreeNode),
-		handler:  handler,
+		callback: callback,
 		leaf:     false,
 	}
 
@@ -200,16 +199,8 @@ func (s *symptomTreeNode) SetParent(parent *SymptomTreeNode) {
 	s.parent = parent
 }
 
-func (s *symptomTreeNode) Handler() conditionHandler {
-	return s.handler
-}
-
 func (s *symptomTreeNode) IsLeaf() bool {
 	return s.leaf
-}
-
-func (s *symptomTreeNode) ConditionMet(matched int) bool {
-	return true;
 }
 
 func (s *symptomTreeNode) AddChild(c SymptomTreeNode) error {
@@ -227,76 +218,14 @@ func (s *symptomTreeNode) AddChild(c SymptomTreeNode) error {
 	return nil
 }
 
-// Chyba useless
-func TrueCondition(w *MatchWorkerPool, symptom Symptom, children int, recv chan JobStatus, send chan JobStatus) {
-	w.EnqueueNode(symptom, send, nil)
-	for range children {
-		_ = <-recv
-	}
-	close(recv)
+func (s *symptomTreeNode) ConditionMet(matched int) bool {
+	return s.callback(s, matched)
 }
 
-func OrConditionPropagateFirst(w *MatchWorkerPool, symptom Symptom, children int, recv chan JobStatus, send chan JobStatus) {
-	enqueued := false
-	for i := 0; i < children; i++ {
-		jobStatus := <-recv
-		if jobStatus.matched() && !enqueued {
-			w.EnqueueNode(symptom, send, jobStatus.Issues)
-			enqueued = true
-		}
-	}
-	if !enqueued {
-		send <- JobStatus{
-			Job:       nil,
-			Error:     nil,
-			Issues:    make([]Issue, 0),
-			SubIssues: make([]Issue, 0),
-		}
-	}
-
-	close(recv)
+func OrConditionCallback(_ SymptomTreeNode, matched int) bool{
+	return matched > 0
 }
 
-func OrConditionPropagateAll(w *MatchWorkerPool, symptom Symptom, children int, recv chan JobStatus, send chan JobStatus) {
-	matched := false
-	subIssues := make([]Issue, 0)
-	for i := 0; i < children; i++ {
-		jobStatus := <-recv
-		subIssues = append(subIssues, jobStatus.Issues...)
-		if jobStatus.matched() {
-			matched = true
-		}
-	}
-	if matched {
-		w.EnqueueNode(symptom, send, subIssues)
-	} else {
-		send <- JobStatus{
-			Job:       nil,
-			Error:     nil,
-			Issues:    make([]Issue, 0),
-			SubIssues: make([]Issue, 0),
-		}
-	}
-
-	close(recv)
-}
-
-func AndCondition(w *MatchWorkerPool, symptom Symptom, children int, recv chan JobStatus, send chan JobStatus) {
-	msgSend := false
-	subIssues := make([]Issue, 0)
-	for i := 0; i < children; i++ {
-		jobStatus := <-recv
-		subIssues = append(subIssues, jobStatus.Issues...)
-		if !jobStatus.matched() && !msgSend {
-			jobStatus.SubIssues = append(jobStatus.Issues, jobStatus.SubIssues...)
-			jobStatus.Issues = make([]Issue, 0)
-			send <- jobStatus
-			msgSend = true
-		}
-	}
-	if !msgSend {
-		w.EnqueueNode(symptom, send, subIssues)
-	}
-
-	close(recv)
+func AndConditionCallback(node SymptomTreeNode, matched int) bool {
+	return len(node.Children()) == matched
 }

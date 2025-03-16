@@ -21,7 +21,7 @@ var trueSymptom = symptoms.NewSymptom("true", "", "", trueSelector)
 var falseSymptom = symptoms.NewSymptom("false", "", "", falseSelector)
 
 func OrTestTree() symptoms.SymptomTreeNode {
-	root := symptoms.NewSymptomTreeNode("or", trueSymptom, symptoms.OrConditionPropagateFirst)
+	root := symptoms.NewSymptomTreeNode("or", trueSymptom, symptoms.OrConditionCallback)
 	trueNode := symptoms.NewSymptomTreeLeaf("true", trueSymptom)
 	falseNode := symptoms.NewSymptomTreeLeaf("false", falseSymptom)
 	root.AddChild(trueNode)
@@ -30,7 +30,7 @@ func OrTestTree() symptoms.SymptomTreeNode {
 }
 
 func AndTestTree() symptoms.SymptomTreeNode {
-	root := symptoms.NewSymptomTreeNode("and", trueSymptom, symptoms.AndCondition)
+	root := symptoms.NewSymptomTreeNode("and", trueSymptom, symptoms.AndConditionCallback)
 	trueNode := symptoms.NewSymptomTreeLeaf("true", trueSymptom)
 	falseNode := symptoms.NewSymptomTreeLeaf("false", falseSymptom)
 	root.AddChild(trueNode)
