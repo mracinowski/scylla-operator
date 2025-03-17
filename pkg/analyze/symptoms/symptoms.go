@@ -119,8 +119,9 @@ type conditionCallback func(SymptomTreeNode, int) bool
 type SymptomTreeNode interface {
 	Name() string
 	Symptom() Symptom
-	Parent() *SymptomTreeNode
-	SetParent(*SymptomTreeNode)
+	SetSymptom(Symptom) error
+	Parent() SymptomTreeNode
+	SetParent(SymptomTreeNode)
 	IsLeaf() bool
 	ConditionMet(int) bool
 
@@ -130,11 +131,18 @@ type SymptomTreeNode interface {
 
 type symptomTreeNode struct {
 	name     string
-	parent   *SymptomTreeNode
+	parent   SymptomTreeNode
 	symptom  Symptom
 	leaf     bool
 	children map[string]SymptomTreeNode
 	callback conditionCallback
+}
+
+func NewEmptySymptomNode(name string) SymptomTreeNode {
+	return &symptomTreeNode{
+		name: name,
+		children: make(map[string]SymptomTreeNode),
+	}
 }
 
 func NewSymptomTreeLeaf(name string, symptom Symptom) SymptomTreeNode {
@@ -172,7 +180,7 @@ func NewSymptomTreeNodeWithChildren(name string, symptom Symptom, callback condi
 	for _, c := range children {
 		err := node.AddChild(c)
 		if err != nil {
-			klog.Warningf("can't add child symptoms for set %s: %v, name, err")
+			klog.Warningf("can't add child symptoms for set %s: %v", name, err)
 			return nil
 		}
 	}
@@ -187,15 +195,23 @@ func (s *symptomTreeNode) Symptom() Symptom {
 	return s.symptom
 }
 
+func (s *symptomTreeNode) SetSymptom(symptom Symptom) error {
+	if symptom == nil {
+		return errors.New("Can't set nil symtptom")
+	}
+	s.symptom=symptom
+	return nil
+}
+
 func (s *symptomTreeNode) Children() map[string]SymptomTreeNode {
 	return s.children
 }
 
-func (s *symptomTreeNode) Parent() *SymptomTreeNode {
+func (s *symptomTreeNode) Parent() SymptomTreeNode {
 	return s.parent
 }
 
-func (s *symptomTreeNode) SetParent(parent *SymptomTreeNode) {
+func (s *symptomTreeNode) SetParent(parent SymptomTreeNode) {
 	s.parent = parent
 }
 
@@ -213,8 +229,7 @@ func (s *symptomTreeNode) AddChild(c SymptomTreeNode) error {
 	}
 	s.children[c.Name()] = c
 
-	var thisAsInterface SymptomTreeNode = s
-	c.SetParent(&thisAsInterface)
+	c.SetParent(s)
 	return nil
 }
 
