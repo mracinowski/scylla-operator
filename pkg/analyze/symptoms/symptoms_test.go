@@ -340,17 +340,17 @@ func TestNewEmptySymptomSet_IsEmpty(t *testing.T) {
 	expectedName := "dummySet"
 
 	// when
-	set := NewEmptySymptomSet(expectedName)
+	set := NewEmptySymptomNode(expectedName)
 
 	// then
 	if set.Name() != expectedName {
 		t.Errorf("name differs - got %s, wwant %s", set.Name(), expectedName)
 	}
-	if len(set.Symptoms()) > 0 {
-		t.Errorf("Symptoms() is not empty - got %v", set.Symptoms())
+	if set.Symptom() != nil {
+		t.Errorf("Symptom is not nil - got %v", set.Symptom())
 	}
-	if len(set.DerivedSets()) > 0 {
-		t.Errorf("DerivedSets() is not empty - got %v", set.DerivedSets())
+	if len(set.Children()) > 0 {
+		t.Errorf("Children() is not empty - got %v", set.Children())
 	}
 	if set.Parent() != nil {
 		t.Errorf("Parent() is not nil - got %v", set.Parent())
@@ -363,19 +363,20 @@ func TestNewEmptySymptomSet_IsNotEmpty(t *testing.T) {
 	expectedName := "dummySet"
 	child1Name := "child1"
 	child2Name := "child2"
-	child1 := NewEmptySymptomSet(child1Name)
-	child2 := NewEmptySymptomSet(child2Name)
-	children := []*SymptomSet{&child1, &child2}
+	child1 := NewEmptySymptomNode(child1Name)
+	child2 := NewEmptySymptomNode(child2Name)
+	children := []SymptomTreeNode{child1, child2}
 
 	// when
-	set := NewSymptomSet(expectedName, children)
+	set := NewSymptomTreeNodeWithChildren(expectedName, nil, nil, children...)
+	//set := NewSymptomSet(expectedName, children)
 
 	// then
 	if set.Name() != expectedName {
 		t.Errorf("name differs - got %s, wwant %s", set.Name(), expectedName)
 	}
-	if len(set.Symptoms()) > 0 {
-		t.Errorf("Symptoms() is not empty - got %v", set.Symptoms())
+	if set.Symptom() != nil {
+		t.Errorf("Symptom() is not empty - got %v", set.Symptom())
 	}
 	if set.Parent() != nil {
 		t.Fatalf("Parent() is not nil - got %v", set.Parent())
@@ -383,57 +384,54 @@ func TestNewEmptySymptomSet_IsNotEmpty(t *testing.T) {
 
 	for _, child := range children {
 		found := false
-		for k, ds := range set.DerivedSets() {
-			if (*child).Name() == k {
+		for k, ds := range set.Children() {
+			if child.Name() == k {
 				found = true
-				if (*ds).Parent() == nil || (*(*ds).Parent()).Name() != set.Name() {
-					t.Errorf("wrong parent for %s - got %v, want %v", k, (*ds).Parent(), &set)
+				if ds.Parent() == nil || ds.Parent().Name() != set.Name() {
+					t.Errorf("wrong parent for %s - got %v, want %v", k, ds.Parent(), &set)
 				}
-				if len((*ds).Symptoms()) > 0 {
-					t.Errorf("Symptoms() is not empty for %s - got %v", k, set.Symptoms())
+				if ds.Symptom() != nil {
+					t.Errorf("Symptom() is not empty for %s - got %v", k, set.Symptom())
 				}
-				if len((*ds).DerivedSets()) > 0 {
-					t.Errorf("DerivedSets() is not empty for %s - got %v", k, set.DerivedSets())
+				if len(ds.Children()) > 0 {
+					t.Errorf("Children() is not empty for %s - got %v", k, set.Children())
 				}
 			}
 		}
 		if !found {
-			t.Errorf("child missing: %s", (*child).Name())
+			t.Errorf("child missing: %s", child.Name())
 		}
 	}
 }
 
-func TestSymptomSet_Add_ShouldAddValidSymptom(t *testing.T) {
+func TestSymptomTreeNode_SetSymptom_ShouldSetValidSymptom(t *testing.T) {
 	t.Parallel()
 	// given
-	ss := NewEmptySymptomSet("symptomSet")
+	ss := NewEmptySymptomNode("symptomSet")
 	s := newFakeSymptom("symptom", func(snapshot.Snapshot) ([]Issue, error) { return nil, nil })
 
 	// when
-	err := ss.Add(&s)
+	err := ss.SetSymptom(s)
 
 	// then
 	if err != nil {
 		t.Fatalf("add shouldn't return an error %v", err)
 	}
-	if len(ss.Symptoms()) != 1 {
-		t.Fatalf("symptoms length mismatch, got %d want 1", len(ss.Symptoms()))
+	if ss.Symptom() == nil {
+		t.Fatalf("symptom shouldn't be nil, got nil, want %v", s)
 	}
-	if _, ok := ss.Symptoms()["symptom"]; !ok {
-		t.Fatalf("symptoms should contain symptom, got %d want 1", len(ss.Symptoms()))
-	}
-	if (*ss.Symptoms()["symptom"]).Name() != "symptom" {
-		t.Errorf("symptom name invalid, got %s want symptom", (*ss.Symptoms()["symptom"]).Name())
+	if ss.Symptom().Name() != "symptom" {
+		t.Errorf("symptom name invalid, got %s want symptom", ss.Symptom().Name())
 	}
 }
 
-func TestSymptomSet_Add_ShouldReturnAnErrorGivenNil(t *testing.T) {
+func TestSymptomTreeNode_SetSymptom_ShouldReturnAnErrorGivenNil(t *testing.T) {
 	t.Parallel()
 	// given
-	ss := NewEmptySymptomSet("symptomSet")
+	ss := NewEmptySymptomNode("symptomSet")
 
 	// when
-	err := ss.Add(nil)
+	err := ss.SetSymptom(nil)
 
 	// then
 	if err == nil {
@@ -441,34 +439,34 @@ func TestSymptomSet_Add_ShouldReturnAnErrorGivenNil(t *testing.T) {
 	}
 }
 
-func TestSymptomSet_AddChild_ShouldAddValidChild(t *testing.T) {
+func TestSymptomTreeNode_AddChild_ShouldAddValidChild(t *testing.T) {
 	t.Parallel()
 	// given
-	ss := NewEmptySymptomSet("symptomSet1")
-	ss2 := NewEmptySymptomSet("symptomSet2")
+	ss := NewEmptySymptomNode("symptomSet1")
+	ss2 := NewEmptySymptomNode("symptomSet2")
 
 	// when
-	err := ss.AddChild(&ss2)
+	err := ss.AddChild(ss2)
 
 	// then
 	if err != nil {
 		t.Fatalf("AddChild shouldn't return an error %v", err)
 	}
-	if len(ss.DerivedSets()) != 1 {
-		t.Fatalf("DerivedSets length mismatch, got %d want 1", len(ss.DerivedSets()))
+	if len(ss.Children()) != 1 {
+		t.Fatalf("Children length mismatch, got %d want 1", len(ss.Children()))
 	}
-	if _, ok := ss.DerivedSets()["symptomSet2"]; !ok {
-		t.Fatalf("DerivedSets should contein symptomSet2")
+	if _, ok := ss.Children()["symptomSet2"]; !ok {
+		t.Fatalf("Children should contain symptomSet2")
 	}
-	if (*ss.DerivedSets()["symptomSet2"]).Name() != "symptomSet2" {
-		t.Errorf("DerivedSets name invalid, got %s want symptom", (*ss.DerivedSets()["symptomSet2"]).Name())
+	if (ss.Children()["symptomSet2"]).Name() != "symptomSet2" {
+		t.Errorf("Children name invalid, got %s want symptom", (ss.Children()["symptomSet2"]).Name())
 	}
 }
 
 func TestSymptomSet_AddChild_ShouldReturnAnErrorGivenNil(t *testing.T) {
 	t.Parallel()
 	// given
-	ss := NewEmptySymptomSet("symptomSet")
+	ss := NewEmptySymptomNode("symptomSet")
 
 	// when
 	err := ss.AddChild(nil)
