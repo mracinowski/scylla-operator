@@ -59,61 +59,6 @@ func (s *symptom) Match(ds snapshot.Snapshot) ([]Issue, error) {
 	return nil, nil
 }
 
-//type AndSymptom interface {
-//	Symptom
-//	SubSymptoms() []*Symptom
-//}
-//
-//type multiSymptom struct {
-//	name     string
-//	symptoms []*Symptom
-//	selector func(*snapshot.DataSource) (bool, error)
-//}
-//
-//func NewMultiSymptom(name string, symptoms []*Symptom) AndSymptom {
-//	return &multiSymptom{
-//		name:     name,
-//		symptoms: symptoms,
-//		selector: func(_ *snapshot.DataSource) (bool, error) { panic("not implemented :(") },
-//	}
-//}
-//
-//func (m *multiSymptom) Name() string {
-//	return m.name
-//}
-//
-//func (m *multiSymptom) Diagnoses() []string {
-//	diagnoses := make([]string, 0)
-//	for _, sym := range m.symptoms {
-//		diagnoses = append(diagnoses, (*sym).Diagnoses()...)
-//	}
-//	return diagnoses
-//}
-//
-//func (m *multiSymptom) Suggestions() []string {
-//	suggestions := make([]string, 0)
-//	for _, sym := range m.symptoms {
-//		suggestions = append(suggestions, (*sym).Suggestions()...)
-//	}
-//	return suggestions
-//}
-//
-//func (m *multiSymptom) Match(ds *snapshot.DataSource) ([]front.Diagnosis, error) {
-//	match, err := m.selector(ds)
-//	if err != nil {
-//		return nil, err
-//	}
-//	if match {
-//		// TODO: construct diagnosis
-//		return make([]front.Diagnosis, 0), nil
-//	}
-//	return nil, nil
-//}
-//
-//func (m *multiSymptom) SubSymptoms() []*Symptom {
-//	return m.symptoms
-//}
-
 type conditionCallback func(SymptomTreeNode, int) bool
 
 type SymptomTreeNode interface {
