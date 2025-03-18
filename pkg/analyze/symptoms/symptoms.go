@@ -124,6 +124,7 @@ type SymptomTreeNode interface {
 	SetParent(SymptomTreeNode)
 	IsLeaf() bool
 	ConditionMet(int) bool
+	getCallback() conditionCallback
 
 	Children() map[string]SymptomTreeNode
 	AddChild(SymptomTreeNode) error
@@ -140,7 +141,7 @@ type symptomTreeNode struct {
 
 func NewEmptySymptomNode(name string) SymptomTreeNode {
 	return &symptomTreeNode{
-		name: name,
+		name:     name,
 		children: make(map[string]SymptomTreeNode),
 	}
 }
@@ -151,7 +152,7 @@ func NewSymptomTreeLeaf(name string, symptom Symptom) SymptomTreeNode {
 		symptom:  symptom,
 		parent:   nil,
 		children: nil,
-		callback:  nil,
+		callback: nil,
 		leaf:     true,
 	}
 }
@@ -199,7 +200,7 @@ func (s *symptomTreeNode) SetSymptom(symptom Symptom) error {
 	if symptom == nil {
 		return errors.New("Can't set nil symtptom")
 	}
-	s.symptom=symptom
+	s.symptom = symptom
 	return nil
 }
 
@@ -217,6 +218,10 @@ func (s *symptomTreeNode) SetParent(parent SymptomTreeNode) {
 
 func (s *symptomTreeNode) IsLeaf() bool {
 	return s.leaf
+}
+
+func (s *symptomTreeNode) getCallback() conditionCallback {
+	return s.callback
 }
 
 func (s *symptomTreeNode) AddChild(c SymptomTreeNode) error {
@@ -237,7 +242,7 @@ func (s *symptomTreeNode) ConditionMet(matched int) bool {
 	return s.callback(s, matched)
 }
 
-func OrConditionCallback(_ SymptomTreeNode, matched int) bool{
+func OrConditionCallback(_ SymptomTreeNode, matched int) bool {
 	return matched > 0
 }
 

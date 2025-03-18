@@ -14,7 +14,7 @@ func Analyze(ctx context.Context, ds snapshot.Snapshot) error {
 	for _, tree := range rules.Symptoms {
 		diags, _, err := symptoms.MatchTree(tree, ds)
 		if err != nil {
-			klog.Warningf("Error when matching symptom %v",tree.Symptom().Name())
+			klog.Warningf("Error when matching symptom %v", tree.Symptom().Name())
 		}
 		for _, issue := range diags {
 			err := front.Print([]front.Diagnosis{front.NewDiagnosis(issue.Symptom, issue.Resources)})
