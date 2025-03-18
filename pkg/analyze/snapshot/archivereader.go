@@ -1,4 +1,4 @@
-package analyze
+package snapshot
 
 import (
 	"fmt"
@@ -9,8 +9,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
-func NewDataSourceFromFS(fsys fs.FS, decoder runtime.Decoder) (*DataSource, error) {
-	ds := DataSource{
+func NewDataSourceFromFS(fsys fs.FS, decoder runtime.Decoder) (Snapshot, error) {
+	var ds Snapshot = &snapshot{
 		objects: make(map[reflect.Type][]interface{}),
 	}
 
@@ -33,13 +33,12 @@ func NewDataSourceFromFS(fsys fs.FS, decoder runtime.Decoder) (*DataSource, erro
 			}
 			return nil
 		}
-		objType := reflect.TypeOf(obj)
-		ds.objects[objType] = append(ds.objects[objType], obj)
+		ds.Add(obj)
 		return nil
 	})
 
 	if err != nil {
 		return nil, fmt.Errorf("can't walk the file tree: %w", err)
 	}
-	return &ds, nil
+	return ds, nil
 }

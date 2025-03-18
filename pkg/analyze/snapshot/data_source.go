@@ -1,4 +1,4 @@
-package analyze
+package snapshot
 
 import (
 	"context"
@@ -12,11 +12,17 @@ import (
 	"reflect"
 )
 
-type DataSource struct {
+type Snapshot interface {
+	List(objType reflect.Type) []interface{}
+	All() map[reflect.Type][]interface{}
+	Add(obj interface{})
+}
+
+type snapshot struct {
 	objects map[reflect.Type][]interface{}
 }
 
-func (ds *DataSource) List(objType reflect.Type) []interface{} {
+func (ds *snapshot) List(objType reflect.Type) []interface{} {
 	list, exists := ds.objects[objType]
 	if !exists {
 		return make([]interface{}, 0)
@@ -24,13 +30,18 @@ func (ds *DataSource) List(objType reflect.Type) []interface{} {
 	return list
 }
 
-func (ds *DataSource) All() map[reflect.Type][]interface{} {
+func (ds *snapshot) All() map[reflect.Type][]interface{} {
 	return ds.objects
+}
+
+func (ds *snapshot) Add(obj interface{}) {
+	t := reflect.TypeOf(obj)
+	ds.objects[t] = append(ds.objects[t], obj)
 }
 
 func BuildListWithOptions(
 	ctx context.Context,
-	ds *DataSource,
+	ds *Snapshot,
 	listFunc func(ctx context.Context, options metav1.ListOptions) (runtime.Object, error),
 	options metav1.ListOptions,
 ) error {
@@ -45,8 +56,7 @@ func BuildListWithOptions(
 	}
 
 	err := p.EachListItemWithAlloc(ctx, options, func(obj runtime.Object) error {
-		t := reflect.TypeOf(obj)
-		ds.objects[t] = append(ds.objects[t], obj)
+		(*ds).Add(obj)
 		return nil
 	})
 	if err != nil {
@@ -56,7 +66,7 @@ func BuildListWithOptions(
 	return nil
 }
 
-func BuildList(ctx context.Context, ds *DataSource, listFunc func(ctx context.Context, options metav1.ListOptions) (runtime.Object, error)) error {
+func BuildList(ctx context.Context, ds *Snapshot, listFunc func(ctx context.Context, options metav1.ListOptions) (runtime.Object, error)) error {
 	return BuildListWithOptions(ctx, ds, listFunc, metav1.ListOptions{})
 }
 
@@ -64,8 +74,8 @@ func NewDataSourceFromClients(
 	ctx context.Context,
 	kubeClient kubernetes.Interface,
 	scyllaClient scyllaversioned.Interface,
-) (*DataSource, error) {
-	ds := DataSource{
+) (Snapshot, error) {
+	var ds Snapshot = &snapshot{
 		objects: make(map[reflect.Type][]interface{}),
 	}
 
@@ -111,5 +121,5 @@ func NewDataSourceFromClients(
 		return nil, fmt.Errorf("can't build scylla cluster lister: %w", err)
 	}
 
-	return &ds, nil
+	return ds, nil
 }

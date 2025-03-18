@@ -1,10 +1,10 @@
 package selector
 
 import (
-	"github.com/scylladb/scylla-operator/pkg/analyze"
 	"github.com/scylladb/scylla-operator/pkg/analyze/selector/internal/matcher"
 	"github.com/scylladb/scylla-operator/pkg/analyze/selector/internal/predicate"
 	"github.com/scylladb/scylla-operator/pkg/analyze/selector/internal/spec"
+	"github.com/scylladb/scylla-operator/pkg/analyze/snapshot"
 )
 
 type Iterator struct {
@@ -12,7 +12,7 @@ type Iterator struct {
 	values map[string][]any
 }
 
-func (s *Selector) FromDataSource(snapshot analyze.DataSource) *Iterator {
+func (s *Selector) FromDataSource(snapshot snapshot.Snapshot) *Iterator {
 	result := make(map[string][]any)
 
 	for name, typ := range s.spec.List() {
