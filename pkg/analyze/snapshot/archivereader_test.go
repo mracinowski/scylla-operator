@@ -347,12 +347,12 @@ metadata:
 
 			if err == nil {
 
-				for t, objs := range ds.objects {
+				for t, objs := range ds.All() {
 					sortByName(objs)
 					sortByName(tc.expectedObjects[t])
 				}
 
-				if !reflect.DeepEqual(ds.objects, tc.expectedObjects) {
+				if !reflect.DeepEqual(ds.All(), tc.expectedObjects) {
 					t.Errorf("expected and actual objects differ: %s", cmp.Diff(tc.expectedObjects, ds.All()))
 				}
 			}

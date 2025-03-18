@@ -2,7 +2,9 @@ package rules
 
 import "github.com/scylladb/scylla-operator/pkg/analyze/symptoms"
 
-var symptomSlices = [][]symptoms.SymptomTreeNode{}
+var symptomSlices = [][]symptoms.SymptomTreeNode{
+	StorageSymptoms,
+}
 
 var Symptoms []symptoms.SymptomTreeNode
 

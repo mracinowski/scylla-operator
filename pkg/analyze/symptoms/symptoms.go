@@ -3,6 +3,7 @@ package symptoms
 import (
 	"errors"
 	"fmt"
+	"github.com/scylladb/scylla-operator/pkg/analyze/selector"
 	"github.com/scylladb/scylla-operator/pkg/analyze/snapshot"
 	"k8s.io/klog/v2"
 )
@@ -20,14 +21,23 @@ type symptom struct {
 	name        string
 	diagnoses   []string
 	suggestions []string
-	selector    func(snapshot.Snapshot) []map[string]any
+	selector    *selector.Selector
 }
 
-func NewSymptom(name string, diag string, suggestions string, selector func(snapshot.Snapshot) []map[string]any) Symptom {
+func NewSymptom(name string, diag string, suggestions string, selector *selector.Selector) Symptom {
 	return &symptom{
 		name:        name,
 		diagnoses:   []string{diag},
 		suggestions: []string{suggestions},
+		selector:    selector,
+	}
+}
+
+func NewSymptomWithManyDiagnoses(name string, diagnoses []string, suggestions []string, selector *selector.Selector) Symptom {
+	return &symptom{
+		name:        name,
+		diagnoses:   diagnoses,
+		suggestions: suggestions,
 		selector:    selector,
 	}
 }
@@ -45,7 +55,12 @@ func (s *symptom) Suggestions() []string {
 }
 
 func (s *symptom) Match(ds snapshot.Snapshot) ([]Issue, error) {
-	res := s.selector(ds)
+	it := s.selector.FromDataSource(ds)
+	res, err := it.Take(DefaultLimit)
+	if err != nil {
+		return nil, err
+	}
+
 	if res != nil && len(res) > 0 {
 		issues := make([]Issue, len(res))
 
@@ -56,6 +71,7 @@ func (s *symptom) Match(ds snapshot.Snapshot) ([]Issue, error) {
 
 		return issues, nil
 	}
+
 	return nil, nil
 }
 
@@ -111,6 +127,26 @@ func NewSymptomTreeNode(name string, symptom Symptom, callback conditionCallback
 		callback: callback,
 		leaf:     false,
 	}
+}
+
+func NewSymptomTreeNodeGroup(name string, callback conditionCallback, children ...SymptomTreeNode) SymptomTreeNode {
+	node := symptomTreeNode{
+		name:     name,
+		symptom:  NewSymptom(name, "Node group", "Node group", selector.New()),
+		parent:   nil,
+		children: make(map[string]SymptomTreeNode),
+		callback: callback,
+		leaf:     false,
+	}
+
+	for _, c := range children {
+		err := node.AddChild(c)
+		if err != nil {
+			klog.Warningf("can't add child symptoms for set %s: %v", name, err)
+			return nil
+		}
+	}
+	return &node
 }
 
 func NewSymptomTreeNodeWithChildren(name string, symptom Symptom, callback conditionCallback, children ...SymptomTreeNode) SymptomTreeNode {

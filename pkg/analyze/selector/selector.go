@@ -19,7 +19,11 @@ func Type[T any]() reflect.Type {
 }
 
 func New() *Selector {
-	return &Selector{spec: spec.New()}
+	return &Selector{
+		spec:    spec.New(),
+		filter:  make(map[string]*predicate.Predicate),
+		nilable: make(map[string]bool),
+	}
 }
 
 func Select(name string, typ reflect.Type, filter any) *Selector {
