@@ -1,4 +1,4 @@
-package analyze
+package snapshot
 
 import (
 	"github.com/google/go-cmp/cmp"
@@ -13,7 +13,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
-	"k8s.io/client-go/tools/cache"
 )
 
 func sortByName(objs []interface{}) {
@@ -25,31 +24,6 @@ func sortByName(objs []interface{}) {
 		}
 		return iObj.GetName() < jObj.GetName()
 	})
-}
-
-// Checks if all object listed by .List() can be also retrieved using .GetByKey()
-func checkIndexer(t *testing.T, indexer cache.Indexer, keyFunc func(obj interface{}) (string, error)) bool {
-	for _, obj := range indexer.List() {
-		key, err := keyFunc(obj)
-		if err != nil {
-			t.Errorf("can't apply keyFunc to object in list: %v", err)
-			return false
-		}
-		gbkObj, exists, err := indexer.GetByKey(key)
-		if err != nil {
-			t.Errorf("can't retrieve item using GetByKey: %v", err)
-			return false
-		}
-		if !exists {
-			t.Errorf("no object with key exists in indexer %s", key)
-			return false
-		}
-		if !reflect.DeepEqual(obj, gbkObj) {
-			t.Errorf("expected and got indexer.GetByKey objects differ %s", cmp.Diff(obj, gbkObj))
-			return false
-		}
-	}
-	return true
 }
 
 func TestArchiveReader(t *testing.T) {
@@ -70,10 +44,10 @@ func TestArchiveReader(t *testing.T) {
 	testDecoder := serializer.NewCodecFactory(testScheme).UniversalDeserializer()
 
 	tt := []struct {
-		name                   string
-		archive                fstest.MapFS
-		expectedIndexerObjects map[reflect.Type][]interface{}
-		expectedError          error
+		name            string
+		archive         fstest.MapFS
+		expectedObjects map[reflect.Type][]interface{}
+		expectedError   error
 	}{
 		{
 			name: "deserializes .yaml files",
@@ -93,7 +67,7 @@ metadata:
   name: pod2
 `))},
 			},
-			expectedIndexerObjects: map[reflect.Type][]interface{}{
+			expectedObjects: map[reflect.Type][]interface{}{
 				reflect.TypeOf(&corev1.Pod{}): {
 					&corev1.Pod{
 						TypeMeta: metav1.TypeMeta{
@@ -158,8 +132,8 @@ metadata:
   name: pod5
 `))},
 			},
-			expectedIndexerObjects: map[reflect.Type][]interface{}{},
-			expectedError:          nil,
+			expectedObjects: map[reflect.Type][]interface{}{},
+			expectedError:   nil,
 		},
 		{
 			name: "deserializes nested files",
@@ -179,7 +153,7 @@ metadata:
   name: pod2
 				`))},
 			},
-			expectedIndexerObjects: map[reflect.Type][]interface{}{
+			expectedObjects: map[reflect.Type][]interface{}{
 				reflect.TypeOf(&corev1.Pod{}): {
 					&corev1.Pod{
 						TypeMeta: metav1.TypeMeta{
@@ -210,8 +184,8 @@ metadata:
 			archive: fstest.MapFS{
 				"dir1.yaml/dir2.yaml/file.txt": &fstest.MapFile{Data: []byte("test")},
 			},
-			expectedIndexerObjects: map[reflect.Type][]interface{}{},
-			expectedError:          nil,
+			expectedObjects: map[reflect.Type][]interface{}{},
+			expectedError:   nil,
 		},
 		{
 			name: "ignores unknown resource kinds",
@@ -229,14 +203,14 @@ metadata:
   name: test
 `))},
 			},
-			expectedIndexerObjects: map[reflect.Type][]interface{}{},
-			expectedError:          nil,
+			expectedObjects: map[reflect.Type][]interface{}{},
+			expectedError:   nil,
 		},
 		{
-			name:                   "empty fs is valid",
-			archive:                fstest.MapFS{},
-			expectedIndexerObjects: map[reflect.Type][]interface{}{},
-			expectedError:          nil,
+			name:            "empty fs is valid",
+			archive:         fstest.MapFS{},
+			expectedObjects: map[reflect.Type][]interface{}{},
+			expectedError:   nil,
 		},
 		{
 			name: "multiple objects type",
@@ -284,7 +258,7 @@ metadata:
   namespace: test
 `))},
 			},
-			expectedIndexerObjects: map[reflect.Type][]interface{}{
+			expectedObjects: map[reflect.Type][]interface{}{
 				reflect.TypeOf(&corev1.Pod{}): {
 					&corev1.Pod{
 						TypeMeta: metav1.TypeMeta{
@@ -365,25 +339,21 @@ metadata:
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			indexers, err := IndexersFromFS(tc.archive, testDecoder)
+			ds, err := NewDataSourceFromFS(tc.archive, testDecoder)
 
 			if !reflect.DeepEqual(err, tc.expectedError) {
 				t.Fatalf("got error %v expected error %v", err, tc.expectedError)
 			}
 
 			if err == nil {
-				gotIndexerObjects := map[reflect.Type][]interface{}{}
 
-				for indexerType, indexer := range indexers {
-					checkIndexer(t, indexer, cache.MetaNamespaceKeyFunc)
-
-					gotIndexerObjects[indexerType] = indexer.List()
-					sortByName(gotIndexerObjects[indexerType])
-					sortByName(tc.expectedIndexerObjects[indexerType])
+				for t, objs := range ds.All() {
+					sortByName(objs)
+					sortByName(tc.expectedObjects[t])
 				}
 
-				if !reflect.DeepEqual(gotIndexerObjects, tc.expectedIndexerObjects) {
-					t.Fatalf("expected and got indexer objects differ: %s", cmp.Diff(tc.expectedIndexerObjects, gotIndexerObjects))
+				if !reflect.DeepEqual(ds.All(), tc.expectedObjects) {
+					t.Errorf("expected and actual objects differ: %s", cmp.Diff(tc.expectedObjects, ds.All()))
 				}
 			}
 		})
