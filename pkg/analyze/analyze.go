@@ -2,7 +2,7 @@ package analyze
 
 import (
 	"context"
-	"fmt"
+	"github.com/scylladb/scylla-operator/pkg/analyze/front"
 	"github.com/scylladb/scylla-operator/pkg/analyze/snapshot"
 	"github.com/scylladb/scylla-operator/pkg/analyze/symptoms"
 	"github.com/scylladb/scylla-operator/pkg/analyze/symptoms/rules"
@@ -20,7 +20,7 @@ func Analyze(ctx context.Context, ds snapshot.Snapshot) error {
 		}
 		if diag != nil {
 			for _, d := range diag {
-				fmt.Println(d)
+				err = front.Print(d, false)
 				if err != nil {
 					return err
 				}
