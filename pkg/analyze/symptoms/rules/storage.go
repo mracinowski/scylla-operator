@@ -30,6 +30,7 @@ func buildLocalCsiDriverMissingSymptoms() symptoms.SymptomTreeNode {
 		"local-csi-driver CSIDriver, referenced by scylladb-local-xfs StorageClass, is missing",
 		"deploy local-csi-driver provisioner (or change StorageClass)",
 		selector.
+			New().
 			Select("scylla-cluster", selector.Type[*scyllav1.ScyllaCluster](), func(c *scyllav1.ScyllaCluster) (bool, error) {
 				statefulSetControllerProgressing := false
 				progressing := false
@@ -78,6 +79,7 @@ func buildStorageClassMissingSymptoms() symptoms.SymptomTreeNode {
 		"scylladb-local-xfs StorageClass used by a ScyllaCluster is missing",
 		"deploy scylladb-local-xfs StorageClass (or change StorageClass)",
 		selector.
+			New().
 			Select("scylla-cluster", selector.Type[*scyllav1.ScyllaCluster](), func(c *scyllav1.ScyllaCluster) (bool, error) {
 				statefulSetControllerProgressing := false
 				progressing := false
@@ -158,6 +160,7 @@ func buildNodeConfigSymptoms() symptoms.SymptomTreeNode {
 			"fix the NodeConfig (see node-config's #TODO: node config path# error conditions), then rolling restart local-csi-driver",
 		},
 		selector.
+			New().
 			Select("scylla-cluster", selector.Type[*scyllav1.ScyllaCluster](), func(c *scyllav1.ScyllaCluster) (bool, error) {
 				return !symptoms.MeetsCondition(c, "Available", "True"), nil
 			}).
@@ -260,6 +263,7 @@ func buildNodeConfigSymptoms() symptoms.SymptomTreeNode {
 		"NodeConfig configured with a non-existent device",
 		"fix NodeConfig",
 		selector.
+			New().
 			Select("node-config", selector.Type[*scyllav1alpha1.NodeConfig](), func(nc *scyllav1alpha1.NodeConfig) (bool, error) {
 				r := regexp.MustCompile(nodeConfigConditionPattern)
 				for _, cond := range nc.Status.Conditions {
