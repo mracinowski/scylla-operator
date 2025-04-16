@@ -55,7 +55,11 @@ func (s *symptom) Suggestions() []string {
 }
 
 func (s *symptom) Match(sn snapshot.Snapshot) ([]Issue, error) {
-	it := s.selector.FromSnapshot(sn)
+	it, err := s.selector.FromSnapshot(sn)
+	if err != nil {
+		return nil, err
+	}
+
 	res, err := it.Take(DefaultLimit)
 	if err != nil {
 		return nil, err
