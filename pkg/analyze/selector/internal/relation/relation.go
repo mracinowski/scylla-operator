@@ -19,19 +19,19 @@ type relation struct {
 }
 
 func New(first string, second string, lambda any) (*relation, error) {
-	typ := reflect.TypeOf(lambda)
+	t := reflect.TypeOf(lambda)
 
-	if typ == nil || typ.Kind() != reflect.Func {
+	if t == nil || t.Kind() != reflect.Func {
 		return nil, fmt.Errorf("Not a Func")
 	}
 
-	if typ.NumOut() != 2 ||
-		typ.Out(0) != reflect.TypeFor[bool]() ||
-		typ.Out(1) != reflect.TypeFor[error]() {
+	if t.NumOut() != 2 ||
+		t.Out(0) != reflect.TypeFor[bool]() ||
+		t.Out(1) != reflect.TypeFor[error]() {
 		return nil, fmt.Errorf("Return type must be (bool, error)")
 	}
 
-	if typ.NumIn() != 2 {
+	if t.NumIn() != 2 {
 		return nil, fmt.Errorf("There must be exactly two parameters")
 	}
 
