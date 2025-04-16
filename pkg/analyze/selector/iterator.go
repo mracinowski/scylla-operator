@@ -12,7 +12,11 @@ type Iterator struct {
 	values map[string][]any
 }
 
-func (s *Selector) FromSnapshot(snapshot snapshot.Snapshot) *Iterator {
+func (s *Selector) FromSnapshot(snapshot snapshot.Snapshot) (*Iterator, error) {
+	if s.error != nil {
+		return nil, s.error
+	}
+
 	result := make(map[string][]any)
 
 	for name, typ := range s.spec.List() {
@@ -22,7 +26,7 @@ func (s *Selector) FromSnapshot(snapshot snapshot.Snapshot) *Iterator {
 			var err error
 			values, err = filterValues(filter, values)
 			if err != nil {
-				return nil
+				return nil, err
 			}
 		}
 
@@ -33,7 +37,7 @@ func (s *Selector) FromSnapshot(snapshot snapshot.Snapshot) *Iterator {
 		result[name] = values
 	}
 
-	return &Iterator{spec: s.spec, values: result}
+	return &Iterator{spec: s.spec, values: result}, nil
 }
 
 func filterValues(filter *predicate.Predicate, values []any) ([]any, error) {

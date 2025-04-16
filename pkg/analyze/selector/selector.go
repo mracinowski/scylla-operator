@@ -12,6 +12,7 @@ type Selector struct {
 	spec    *spec.Spec
 	filter  map[string]*predicate.Predicate
 	nilable map[string]bool
+	error
 }
 
 func Type[T any]() reflect.Type {
@@ -23,6 +24,7 @@ func New() *Selector {
 		spec:    spec.New(),
 		filter:  make(map[string]*predicate.Predicate),
 		nilable: make(map[string]bool),
+		error:   nil,
 	}
 }
 
@@ -35,14 +37,20 @@ func SelectWithNil(name string, typ reflect.Type, filter any) *Selector {
 }
 
 func (s *Selector) Select(name string, typ reflect.Type, filter any) *Selector {
+	if s.error != nil {
+		return s
+	}
+
 	if !s.spec.Add(name, typ) {
-		panic(fmt.Sprintf("%s already defined", name))
+		s.error = fmt.Errorf("Duplicate %s definition", name)
+		return s
 	}
 
 	if filter != nil {
 		p, err := predicate.New(name, filter)
 		if err != nil {
-			panic(err)
+			s.error = err
+			return s
 		}
 
 		s.filter[name] = p
@@ -54,6 +62,10 @@ func (s *Selector) Select(name string, typ reflect.Type, filter any) *Selector {
 }
 
 func (s *Selector) SelectWithNil(name string, typ reflect.Type, filter any) *Selector {
+	if s.error != nil {
+		return s
+	}
+
 	s.Select(name, typ, filter)
 
 	s.nilable[name] = true
@@ -62,26 +74,38 @@ func (s *Selector) SelectWithNil(name string, typ reflect.Type, filter any) *Sel
 }
 
 func (s *Selector) Relate(first, second string, lambda any) *Selector {
+	if s.error != nil {
+		return s
+	}
+
 	relation, err := relation.New(first, second, lambda)
 	if err != nil {
-		panic(err)
+		s.error = err
+		return s
 	}
 
 	if !s.spec.Relate(relation) {
-		panic("Invalid relation")
+		s.error = fmt.Errorf("Invalid relation between %s and %s", first, second)
+		return s
 	}
 
 	return s
 }
 
 func (s *Selector) Where(name string, lambda any) *Selector {
+	if s.error != nil {
+		return s
+	}
+
 	predicate, err := predicate.New(name, lambda)
 	if err != nil {
-		panic(err)
+		s.error = err
+		return s
 	}
 
 	if !s.spec.Relate(predicate) {
-		panic("Invalid predicate")
+		s.error = fmt.Errorf("Invalid Where condition for %s", name)
+		return s
 	}
 
 	return s
