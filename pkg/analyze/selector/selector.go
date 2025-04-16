@@ -28,14 +28,6 @@ func New() *Selector {
 	}
 }
 
-func Select(name string, typ reflect.Type, filter any) *Selector {
-	return New().Select(name, typ, filter)
-}
-
-func SelectWithNil(name string, typ reflect.Type, filter any) *Selector {
-	return New().SelectWithNil(name, typ, filter)
-}
-
 func (s *Selector) Select(name string, typ reflect.Type, filter any) *Selector {
 	if s.error != nil {
 		return s
