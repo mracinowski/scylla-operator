@@ -30,7 +30,7 @@ func sortByName(objs []interface{}) {
 	})
 }
 
-func TestNewFromFS(t *testing.T) {
+func TestNewFromArchive(t *testing.T) {
 	t.Parallel()
 
 	testScheme := runtime.NewScheme()
@@ -363,7 +363,6 @@ metadata:
 		})
 	}
 }
-
 
 func TestNewFromClients_SingleLister(t *testing.T) {
 	t.Parallel()

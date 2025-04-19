@@ -3,14 +3,15 @@ package snapshot
 import (
 	"context"
 	"fmt"
-	"io/fs"
-	"path/filepath"
 	scyllaversioned "github.com/scylladb/scylla-operator/pkg/client/scylla/clientset/versioned"
+	"io/fs"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/pager"
+	"os"
+	"path/filepath"
 	"reflect"
 )
 
@@ -124,6 +125,10 @@ func NewFromClients(
 	}
 
 	return ds, nil
+}
+
+func NewFromArchive(archivePath string, decoder runtime.Decoder) (*snapshot, error) {
+	return NewFromFS(os.DirFS(archivePath), decoder)
 }
 
 func NewFromFS(fsys fs.FS, decoder runtime.Decoder) (*snapshot, error) {
