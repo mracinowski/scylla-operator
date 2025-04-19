@@ -70,7 +70,7 @@ func (s *symptom) Match(sn snapshot.Snapshot) ([]Issue, error) {
 	return nil, nil
 }
 
-type conditionCallback func(SymptomTreeNode, int) bool
+type childrenMatcher func(map[string]SymptomTreeNode, snapshot.Snapshot) ([]Issue, bool, error)
 
 type SymptomTreeNode interface {
 	Name() string
@@ -79,20 +79,20 @@ type SymptomTreeNode interface {
 	Parent() SymptomTreeNode
 	SetParent(SymptomTreeNode)
 	IsLeaf() bool
-	ConditionMet(int) bool
-	getCallback() conditionCallback
+	MatchChildren(snapshot.Snapshot) ([]Issue, bool, error)
+	getCallback() childrenMatcher
 
 	Children() map[string]SymptomTreeNode
 	AddChild(SymptomTreeNode) error
 }
 
 type symptomTreeNode struct {
-	name     string
-	parent   SymptomTreeNode
-	symptom  Symptom
-	leaf     bool
-	children map[string]SymptomTreeNode
-	callback conditionCallback
+	name             string
+	parent           SymptomTreeNode
+	symptom          Symptom
+	leaf             bool
+	children         map[string]SymptomTreeNode
+	childrenCallback childrenMatcher
 }
 
 func NewEmptySymptomNode(name string) SymptomTreeNode {
@@ -104,34 +104,34 @@ func NewEmptySymptomNode(name string) SymptomTreeNode {
 
 func NewSymptomTreeLeaf(name string, symptom Symptom) SymptomTreeNode {
 	return &symptomTreeNode{
-		name:     name,
-		symptom:  symptom,
-		parent:   nil,
-		children: nil,
-		callback: nil,
-		leaf:     true,
+		name:             name,
+		symptom:          symptom,
+		parent:           nil,
+		children:         nil,
+		childrenCallback: nil,
+		leaf:             true,
 	}
 }
 
-func NewSymptomTreeNode(name string, symptom Symptom, callback conditionCallback) SymptomTreeNode {
+func NewSymptomTreeNode(name string, symptom Symptom, callback childrenMatcher) SymptomTreeNode {
 	return &symptomTreeNode{
-		name:     name,
-		symptom:  symptom,
-		parent:   nil,
-		children: make(map[string]SymptomTreeNode),
-		callback: callback,
-		leaf:     false,
+		name:             name,
+		symptom:          symptom,
+		parent:           nil,
+		children:         make(map[string]SymptomTreeNode),
+		childrenCallback: callback,
+		leaf:             false,
 	}
 }
 
-func NewSymptomTreeNodeGroup(name string, callback conditionCallback, children ...SymptomTreeNode) SymptomTreeNode {
+func NewSymptomTreeNodeGroup(name string, callback childrenMatcher, children ...SymptomTreeNode) SymptomTreeNode {
 	node := symptomTreeNode{
-		name:     name,
-		symptom:  NewSymptom(name, []string{"Node group"}, []string{"Node group"}, selector.New()),
-		parent:   nil,
-		children: make(map[string]SymptomTreeNode),
-		callback: callback,
-		leaf:     false,
+		name:             name,
+		symptom:          NewSymptom(name, []string{"Node group"}, []string{"Node group"}, selector.New()),
+		parent:           nil,
+		children:         make(map[string]SymptomTreeNode),
+		childrenCallback: callback,
+		leaf:             false,
 	}
 
 	for _, c := range children {
@@ -144,14 +144,14 @@ func NewSymptomTreeNodeGroup(name string, callback conditionCallback, children .
 	return &node
 }
 
-func NewSymptomTreeNodeWithChildren(name string, symptom Symptom, callback conditionCallback, children ...SymptomTreeNode) SymptomTreeNode {
+func NewSymptomTreeNodeWithChildren(name string, symptom Symptom, callback childrenMatcher, children ...SymptomTreeNode) SymptomTreeNode {
 	node := symptomTreeNode{
-		name:     name,
-		symptom:  symptom,
-		parent:   nil,
-		children: make(map[string]SymptomTreeNode),
-		callback: callback,
-		leaf:     false,
+		name:             name,
+		symptom:          symptom,
+		parent:           nil,
+		children:         make(map[string]SymptomTreeNode),
+		childrenCallback: callback,
+		leaf:             false,
 	}
 
 	for _, c := range children {
@@ -196,8 +196,8 @@ func (s *symptomTreeNode) IsLeaf() bool {
 	return s.leaf
 }
 
-func (s *symptomTreeNode) getCallback() conditionCallback {
-	return s.callback
+func (s *symptomTreeNode) getCallback() childrenMatcher {
+	return s.childrenCallback
 }
 
 func (s *symptomTreeNode) AddChild(c SymptomTreeNode) error {
@@ -214,14 +214,34 @@ func (s *symptomTreeNode) AddChild(c SymptomTreeNode) error {
 	return nil
 }
 
-func (s *symptomTreeNode) ConditionMet(matched int) bool {
-	return s.callback(s, matched)
+func (s *symptomTreeNode) MatchChildren(ds snapshot.Snapshot) ([]Issue, bool, error) {
+	return s.childrenCallback(s.Children(), ds)
 }
 
-func OrConditionCallback(_ SymptomTreeNode, matched int) bool {
-	return matched > 0
+func OrCondition(children map[string]SymptomTreeNode, ds snapshot.Snapshot) ([]Issue, bool, error) {
+	for _, child := range children {
+		diag, matched, err := MatchTree(child, ds)
+		if err != nil {
+			return nil, false, err
+		}
+		if matched {
+			return diag, true, nil
+		}
+	}
+	return nil, false, nil
 }
 
-func AndConditionCallback(node SymptomTreeNode, matched int) bool {
-	return len(node.Children()) == matched
+func AndCondition(children map[string]SymptomTreeNode, ds snapshot.Snapshot) ([]Issue, bool, error) {
+	diags := make([]Issue, 0)
+	for _, child := range children {
+		diag, matched, err := MatchTree(child, ds)
+		if err != nil {
+			return nil, false, err
+		}
+		if !matched {
+			return nil, false, nil
+		}
+		diags = append(diags, diag...)
+	}
+	return diags, true, nil
 }

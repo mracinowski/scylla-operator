@@ -284,7 +284,7 @@ func buildNodeConfigSymptoms() symptoms.SymptomTreeNode {
 
 	return symptoms.NewSymptomTreeNodeGroup(
 		"NodeConfig nonexistent device",
-		symptoms.OrConditionCallback,
+		symptoms.OrCondition,
 		symptoms.NewSymptomTreeLeaf(nodeConfigClusterWideNonexistentVolume.Name(), nodeConfigClusterWideNonexistentVolume),
 		symptoms.NewSymptomTreeLeaf(nodeConfigNonexistentDevice.Name(), nodeConfigNonexistentDevice))
 }

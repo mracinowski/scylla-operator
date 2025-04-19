@@ -23,18 +23,11 @@ func MatchTree(node SymptomTreeNode, ds snapshot.Snapshot) ([]Issue, bool, error
 			return nil, false, fmt.Errorf("symptom %v: Can't match symptom node with nil symptom", node.Name())
 		}
 		diags := make([]Issue, 0)
-		matchedCount := 0
-		for _, child := range node.Children() {
-			diag, matched, err := MatchTree(child, ds)
-			if err != nil {
-				return nil, false, err
-			}
-			if matched {
-				matchedCount++
-			}
-			diags = append(diags, diag...)
+		diags, matched, err := node.MatchChildren(ds)
+		if err != nil {
+			return nil, false, err
 		}
-		if node.ConditionMet(matchedCount) {
+		if matched {
 			diag, err := node.Symptom().Match(ds)
 			if err != nil {
 				return nil, false, err

@@ -312,13 +312,13 @@ func TestSymptomSet_AddChild_ShouldReturnAnErrorGivenNil(t *testing.T) {
 func TestMatchTreeErrors(t *testing.T) {
 	t.Parallel()
 	trueNode := NewSymptomTreeLeaf("true", &trueSymptom)
-	root := NewSymptomTreeNode("", &trueSymptom, OrConditionCallback)
+	root := NewSymptomTreeNode("", &trueSymptom, OrCondition)
 
 	_, _, err := MatchTree(root, nil)
 	if err == nil {
 		t.Errorf("Matching non-leaf node with no children should return an error")
 	}
-	root = NewSymptomTreeNode("", nil, OrConditionCallback)
+	root = NewSymptomTreeNode("", nil, OrCondition)
 	root.AddChild(trueNode)
 	_, _, err = MatchTree(root, nil)
 	if err == nil {
@@ -334,7 +334,7 @@ func TestMatchTreeErrors(t *testing.T) {
 
 func TestOrCondition(t *testing.T) {
 	t.Parallel()
-	root := NewSymptomTreeNode("or", &trueSymptom, OrConditionCallback)
+	root := NewSymptomTreeNode("or", &trueSymptom, OrCondition)
 	falseNode := NewSymptomTreeLeaf("false", &falseSymptom)
 	root.AddChild(falseNode)
 	_, matched, err := MatchTree(root, nil)
@@ -356,7 +356,7 @@ func TestOrCondition(t *testing.T) {
 }
 
 func TestAndCondition(t *testing.T) {
-	root := NewSymptomTreeNode("and", &trueSymptom, AndConditionCallback)
+	root := NewSymptomTreeNode("and", &trueSymptom, AndCondition)
 	trueNode := NewSymptomTreeLeaf("true", &trueSymptom)
 	root.AddChild(trueNode)
 	_, matched, err := MatchTree(root, nil)
