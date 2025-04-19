@@ -146,12 +146,12 @@ func (o *AnalyzeOptions) Run(streams genericclioptions.IOStreams, cmd *cobra.Com
 			codecFactory = serializer.NewCodecFactory(soscheme.Scheme, serializer.EnableStrict)
 		}
 		fs := os.DirFS(o.ArchivePath)
-		ds, err = snapshot.NewDataSourceFromFS(fs, codecFactory.UniversalDeserializer())
+		ds, err = snapshot.NewFromFS(fs, codecFactory.UniversalDeserializer())
 		if err != nil {
 			return fmt.Errorf("can't build data source from must-gather: %w", err)
 		}
 	} else {
-		ds, err = snapshot.NewDataSourceFromClients(ctx, o.kubeClient, o.scyllaClient)
+		ds, err = snapshot.NewFromClients(ctx, o.kubeClient, o.scyllaClient)
 		if err != nil {
 			return fmt.Errorf("can't build data source from clients: %w", err)
 		}
