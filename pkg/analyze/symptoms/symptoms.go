@@ -24,16 +24,7 @@ type symptom struct {
 	selector    *selector.Selector
 }
 
-func NewSymptom(name string, diag string, suggestions string, selector *selector.Selector) Symptom {
-	return &symptom{
-		name:        name,
-		diagnoses:   []string{diag},
-		suggestions: []string{suggestions},
-		selector:    selector,
-	}
-}
-
-func NewSymptomWithManyDiagnoses(name string, diagnoses []string, suggestions []string, selector *selector.Selector) Symptom {
+func NewSymptom(name string, diagnoses []string, suggestions []string, selector *selector.Selector) Symptom {
 	return &symptom{
 		name:        name,
 		diagnoses:   diagnoses,
@@ -136,7 +127,7 @@ func NewSymptomTreeNode(name string, symptom Symptom, callback conditionCallback
 func NewSymptomTreeNodeGroup(name string, callback conditionCallback, children ...SymptomTreeNode) SymptomTreeNode {
 	node := symptomTreeNode{
 		name:     name,
-		symptom:  NewSymptom(name, "Node group", "Node group", selector.New()),
+		symptom:  NewSymptom(name, []string{"Node group"}, []string{"Node group"}, selector.New()),
 		parent:   nil,
 		children: make(map[string]SymptomTreeNode),
 		callback: callback,

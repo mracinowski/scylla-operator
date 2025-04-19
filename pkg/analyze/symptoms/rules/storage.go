@@ -27,8 +27,8 @@ var StorageSymptoms = []symptoms.SymptomTreeNode{
 func buildLocalCsiDriverMissingSymptoms() symptoms.SymptomTreeNode {
 	// Scenario #2: local-csi-driver CSIDriver, referenced by scylladb-local-xfs StorageClass, is missing
 	csiDriverMissing := symptoms.NewSymptom("CSIDriver is missing",
-		"local-csi-driver CSIDriver, referenced by scylladb-local-xfs StorageClass, is missing",
-		"deploy local-csi-driver provisioner (or change StorageClass)",
+		[]string{"local-csi-driver CSIDriver, referenced by scylladb-local-xfs StorageClass, is missing"},
+		[]string{"deploy local-csi-driver provisioner (or change StorageClass)"},
 		selector.
 			New().
 			Select("scylla-cluster", selector.Type[*scyllav1.ScyllaCluster](), func(c *scyllav1.ScyllaCluster) (bool, error) {
@@ -76,8 +76,8 @@ func buildLocalCsiDriverMissingSymptoms() symptoms.SymptomTreeNode {
 func buildStorageClassMissingSymptoms() symptoms.SymptomTreeNode {
 	// Scenario #1: scylladb-local-xfs StorageClass used by a ScyllaCluster is missing
 	notDeployedStorageClass := symptoms.NewSymptom("StorageClass is missing",
-		"scylladb-local-xfs StorageClass used by a ScyllaCluster is missing",
-		"deploy scylladb-local-xfs StorageClass (or change StorageClass)",
+		[]string{"scylladb-local-xfs StorageClass used by a ScyllaCluster is missing"},
+		[]string{"deploy scylladb-local-xfs StorageClass (or change StorageClass)"},
 		selector.
 			New().
 			Select("scylla-cluster", selector.Type[*scyllav1.ScyllaCluster](), func(c *scyllav1.ScyllaCluster) (bool, error) {
@@ -150,7 +150,7 @@ func buildStorageClassMissingSymptoms() symptoms.SymptomTreeNode {
 
 func buildNodeConfigSymptoms() symptoms.SymptomTreeNode {
 	// Scenario #4: E2Es for misconfigured NodeConfigs
-	nodeConfigClusterWideNonexistentVolume := symptoms.NewSymptomWithManyDiagnoses(
+	nodeConfigClusterWideNonexistentVolume := symptoms.NewSymptom(
 		"NodeConfig doesn't provision storage for local-csi-driver's volumes-dir",
 		[]string{
 			"driver is unable to provide storage due to NodeConfig being misconfigured",
@@ -260,8 +260,8 @@ func buildNodeConfigSymptoms() symptoms.SymptomTreeNode {
 	// Scenario #4': Detects the non-existent device just by condition logs
 	nodeConfigNonexistentDevice := symptoms.NewSymptom(
 		"NodeConfig non-existent device condition",
-		"NodeConfig configured with a non-existent device",
-		"fix NodeConfig",
+		[]string{"NodeConfig configured with a non-existent device"},
+		[]string{"fix NodeConfig"},
 		selector.
 			New().
 			Select("node-config", selector.Type[*scyllav1alpha1.NodeConfig](), func(nc *scyllav1alpha1.NodeConfig) (bool, error) {
