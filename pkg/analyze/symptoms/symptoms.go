@@ -46,7 +46,7 @@ func (s *symptom) Suggestions() []string {
 }
 
 func (s *symptom) Match(sn snapshot.Snapshot) ([]Issue, error) {
-	it, err := s.selector.FromSnapshot(sn)
+	it, err := s.selector.IteratorFromSnapshot(sn)
 	if err != nil {
 		return nil, err
 	}
