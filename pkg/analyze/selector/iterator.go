@@ -4,40 +4,11 @@ import (
 	"github.com/scylladb/scylla-operator/pkg/analyze/selector/internal/matcher"
 	"github.com/scylladb/scylla-operator/pkg/analyze/selector/internal/predicate"
 	"github.com/scylladb/scylla-operator/pkg/analyze/selector/internal/spec"
-	"github.com/scylladb/scylla-operator/pkg/analyze/snapshot"
 )
 
 type Iterator struct {
 	spec   *spec.Spec
 	values map[string][]any
-}
-
-func (s *Selector) FromSnapshot(snapshot snapshot.Snapshot) (*Iterator, error) {
-	if s.error != nil {
-		return nil, s.error
-	}
-
-	result := make(map[string][]any)
-
-	for name, typ := range s.spec.List() {
-		values := snapshot.List(typ)
-
-		if filter := s.filter[name]; filter != nil {
-			var err error
-			values, err = filterValues(filter, values)
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		if s.nilable[name] {
-			values = append(values, nil)
-		}
-
-		result[name] = values
-	}
-
-	return &Iterator{spec: s.spec, values: result}, nil
 }
 
 func filterValues(filter *predicate.Predicate, values []any) ([]any, error) {
