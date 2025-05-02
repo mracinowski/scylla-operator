@@ -53,13 +53,35 @@ func (p *Predicate) Test(argument any) (bool, error) {
 		return false, fmt.Errorf("Argument not assignable")
 	}
 
-	result := p.value.Call([]reflect.Value{reflect.ValueOf(argument)})
-
-	if result[1].IsNil() {
-		return result[0].Interface().(bool), nil
+	if p.value.Kind() != reflect.Func {
+		return false, fmt.Errorf("Invalid predicate")
 	}
 
-	return result[0].Interface().(bool), result[1].Interface().(error)
+	if p.value.Type().NumIn() != 1 {
+		return false, fmt.Errorf("Invalid predicate")
+	}
+
+	results := p.value.Call([]reflect.Value{reflect.ValueOf(argument)})
+
+	if len(results) != 2 {
+		return false, fmt.Errorf("Invalid predicate")
+	}
+
+	result, ok := results[0].Interface().(bool)
+	if !ok {
+		return false, fmt.Errorf("Invalid predicate")
+	}
+
+	if results[1].IsNil() {
+		return result, nil
+	}
+
+	err, ok := results[1].Interface().(error)
+	if !ok {
+		return false, fmt.Errorf("Invalid predicate")
+	}
+
+	return result, err
 }
 
 func (p *Predicate) Check(
