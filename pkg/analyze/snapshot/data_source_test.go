@@ -19,12 +19,12 @@ import (
 	"testing/fstest"
 )
 
-func sortByName(objs []interface{}) {
+func sortByName(t *testing.T, objs []interface{}) {
 	sort.Slice(objs, func(i, j int) bool {
 		iObj, iOK := objs[i].(metav1.Object)
 		jObj, jOK := objs[j].(metav1.Object)
 		if !iOK || !jOK {
-			panic("can't cast indexer object to metav1.Object")
+			t.Fatal("can't cast indexer object to metav1.Object")
 		}
 		return iObj.GetName() < jObj.GetName()
 	})
@@ -351,9 +351,9 @@ metadata:
 
 			if err == nil {
 
-				for t, objs := range ds.All() {
-					sortByName(objs)
-					sortByName(tc.expectedObjects[t])
+				for k, objs := range ds.All() {
+					sortByName(t, objs)
+					sortByName(t, tc.expectedObjects[k])
 				}
 
 				if !reflect.DeepEqual(ds.All(), tc.expectedObjects) {
@@ -589,10 +589,10 @@ func TestNewFromClients_SingleLister(t *testing.T) {
 			objects := snapshot.List(tc.checkedType)
 
 			sort.Slice(objects, func(i, j int) bool {
-				return compareRuntimeObjects(objects[i], objects[j])
+				return compareRuntimeObjects(t, objects[i], objects[j])
 			})
 			sort.Slice(tc.expectedObjects, func(i, j int) bool {
-				return compareRuntimeObjects(tc.expectedObjects[i], tc.expectedObjects[j])
+				return compareRuntimeObjects(t, tc.expectedObjects[i], tc.expectedObjects[j])
 			})
 			if !reflect.DeepEqual(err, tc.expectedErr) {
 				t.Fatalf("expected error: %v, got: %v", tc.expectedErr, err)
@@ -605,11 +605,11 @@ func TestNewFromClients_SingleLister(t *testing.T) {
 	}
 }
 
-func compareRuntimeObjects(a interface{}, b interface{}) bool {
+func compareRuntimeObjects(t *testing.T, a interface{}, b interface{}) bool {
 	aObj, aOK := a.(metav1.Object)
 	bObj, bOK := b.(metav1.Object)
 	if !aOK || !bOK {
-		panic("can't cast indexer object to metav1.Object")
+		t.Fatal("can't cast indexer object to metav1.Object")
 	}
 	valueA := reflect.ValueOf(aObj).Elem().FieldByName("ObjectMeta")
 	valueB := reflect.ValueOf(bObj).Elem().FieldByName("ObjectMeta")
