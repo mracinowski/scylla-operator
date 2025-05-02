@@ -12,25 +12,26 @@ import (
 	"testing"
 )
 
-func NewPredicate(label string, f any) *predicate.Predicate {
+func NewPredicate(t *testing.T, label string, f any) *predicate.Predicate {
 	predicate, err := predicate.New(label, f)
 	if err != nil {
-		panic(err)
+		t.Fatal(err)
 	}
 
 	return predicate
 }
 
-func NewRelation(lhs, rhs string, f any) relation.Relation {
+func NewRelation(t *testing.T, lhs, rhs string, f any) relation.Relation {
 	relation, err := relation.New(lhs, rhs, f)
 	if err != nil {
-		panic(err)
+		t.Fatal(err)
 	}
 
 	return relation
 }
 
 func MakeRelations(
+	t *testing.T,
 	types map[string]reflect.Type,
 	relations []relation.Relation,
 ) spec.Spec {
@@ -38,13 +39,13 @@ func MakeRelations(
 
 	for name, typ := range types {
 		if !result.Add(name, typ) {
-			panic("Invalid field")
+			t.Fatal("Invalid field")
 		}
 	}
 
 	for _, relation := range relations {
 		if !result.Relate(relation) {
-			panic("Invalid relation")
+			t.Fatal("Invalid relation")
 		}
 	}
 
@@ -89,7 +90,7 @@ func TestForEach(t *testing.T) {
 	tests := []ForEachTest{
 		{
 			name: "no relations",
-			relations: MakeRelations(map[string]reflect.Type{
+			relations: MakeRelations(t, map[string]reflect.Type{
 				"A": reflect.TypeFor[int](),
 				"B": reflect.TypeFor[bool](),
 			}, []relation.Relation{}),
@@ -108,11 +109,11 @@ func TestForEach(t *testing.T) {
 		},
 		{
 			name: "single relation",
-			relations: MakeRelations(map[string]reflect.Type{
+			relations: MakeRelations(t, map[string]reflect.Type{
 				"A": reflect.TypeFor[int](),
 				"B": reflect.TypeFor[bool](),
 			}, []relation.Relation{
-				NewRelation("A", "B",
+				NewRelation(t, "A", "B",
 					func(a int, b bool) (bool, error) {
 						return (a%2 == 0) == b, nil
 					}),
@@ -129,11 +130,11 @@ func TestForEach(t *testing.T) {
 		},
 		{
 			name: "single predicate",
-			relations: MakeRelations(map[string]reflect.Type{
+			relations: MakeRelations(t, map[string]reflect.Type{
 				"A": reflect.TypeFor[int](),
 				"B": reflect.TypeFor[bool](),
 			}, []relation.Relation{
-				NewPredicate("A",
+				NewPredicate(t, "A",
 					func(a int) (bool, error) {
 						return a%2 != 0, nil
 					}),
