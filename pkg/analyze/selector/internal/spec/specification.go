@@ -22,12 +22,12 @@ func New() *Spec {
 	}
 }
 
-func (s *Spec) Add(name string, typ reflect.Type) bool {
+func (s *Spec) Add(name string, t reflect.Type) bool {
 	if _, contains := s.types[name]; contains {
 		return false
 	}
 
-	s.types[name] = typ
+	s.types[name] = t
 	s.relations[name] = make(map[string]relation.Relation)
 
 	return true
@@ -45,11 +45,11 @@ func (s *Spec) Relate(relation relation.Relation) bool {
 	firstName, firstType := relation.FirstParameter()
 	secondName, secondType := relation.SecondParameter()
 
-	if typ, exists := s.types[firstName]; !exists || firstType != typ {
+	if t, exists := s.types[firstName]; !exists || firstType != t {
 		return false
 	}
 
-	if typ, exists := s.types[secondName]; !exists || secondType != typ {
+	if t, exists := s.types[secondName]; !exists || secondType != t {
 		return false
 	}
 

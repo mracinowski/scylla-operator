@@ -4,19 +4,19 @@ import (
 	"testing"
 )
 
-type RelationCheckTest struct {
-	name            string
-	firstParameter  string
-	secondParameter string
-	lambda          any
-	firstArgument   any
-	secondArgument  any
-	expectedValue   bool
-	expectedError   bool
-}
-
 func TestRelationCheck(t *testing.T) {
-	tests := []RelationCheckTest{
+	t.Parallel()
+
+	tests := []struct {
+		name            string
+		firstParameter  string
+		secondParameter string
+		lambda          any
+		firstArgument   any
+		secondArgument  any
+		expectedValue   bool
+		expectedError   bool
+	}{
 		{
 			name:            "simple",
 			firstParameter:  "x",
@@ -31,29 +31,31 @@ func TestRelationCheck(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		r, err := New(test.firstParameter, test.secondParameter, test.lambda)
-		if r == nil || err != nil {
-			t.Errorf("%s: Unexpected error: p=%p error=%s", test.name, r, err)
-			continue
-		}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 
-		val, err := r.Check(
-			test.firstParameter, test.firstArgument,
-			test.secondParameter, test.secondArgument,
-		)
-
-		if test.expectedValue != val {
-			t.Errorf("%s: Expected: %t, but got: %t",
-				test.name, test.expectedValue, val)
-		}
-
-		if test.expectedError != (err != nil) {
-			if test.expectedError {
-				t.Errorf("%s: Expected error, but got none", test.name)
-			} else {
-				t.Errorf("%s: Unexpected error: %s", test.name, err)
+			r, err := New(tc.firstParameter, tc.secondParameter, tc.lambda)
+			if r == nil || err != nil {
+				t.Fatalf("%s: Unexpected error: p=%p error=%s", tc.name, r, err)
 			}
-		}
+
+			val, err := r.Check(
+				tc.firstParameter, tc.firstArgument,
+				tc.secondParameter, tc.secondArgument,
+			)
+
+			if tc.expectedValue != val {
+				t.Fatalf("Expected: %t, but got: %t", tc.expectedValue, val)
+			}
+
+			if tc.expectedError != (err != nil) {
+				if tc.expectedError {
+					t.Fatal("Expected error, but got none")
+				} else {
+					t.Fatalf("Unexpected error: %s", err)
+				}
+			}
+		})
 	}
 }

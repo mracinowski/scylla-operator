@@ -6,15 +6,15 @@ import (
 	"testing"
 )
 
-type NewPredicateTest struct {
-	name      string
-	parameter string
-	lambda    any
-	expected  reflect.Type
-}
-
 func TestNewPredicate(t *testing.T) {
-	tests := []NewPredicateTest{
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		parameter string
+		lambda    any
+		expected  reflect.Type
+	}{
 		{
 			name:      "example",
 			parameter: "x",
@@ -70,41 +70,45 @@ func TestNewPredicate(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		p, err := New(test.parameter, test.lambda)
-		if test.expected != nil && (p == nil || err != nil) {
-			t.Errorf("Unexpected error: p=%p error=%s", p, err)
-		}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 
-		if test.expected != nil && p != nil {
-			name, typ := p.Parameter()
-
-			if name != test.parameter {
-				t.Error("Wrong parameter name")
+			p, err := New(tc.parameter, tc.lambda)
+			if tc.expected != nil && (p == nil || err != nil) {
+				t.Fatalf("Unexpected error: p=%p error=%s", p, err)
 			}
 
-			if typ != test.expected {
-				t.Error("Wrong paramater type")
-			}
-		}
+			if tc.expected != nil && p != nil {
+				name, ty := p.Parameter()
 
-		if test.expected == nil && (p != nil || err == nil) {
-			t.Errorf("Expected error: p=%p error=%s", p, err)
-		}
+				if name != tc.parameter {
+					t.Fatal("Wrong parameter name")
+				}
+
+				if ty != tc.expected {
+					t.Fatal("Wrong paramater type")
+				}
+			}
+
+			if tc.expected == nil && (p != nil || err == nil) {
+				t.Fatalf("Expected error: p=%p error=%s", p, err)
+			}
+		})
 	}
 }
 
-type PredicateCheckTest struct {
-	name          string
-	parameter     string
-	lambda        any
-	argument      any
-	expectedValue bool
-	expectedError bool
-}
-
 func TestPredicateCheck(t *testing.T) {
-	tests := []PredicateCheckTest{
+	t.Parallel()
+
+	tests := []struct {
+		name          string
+		parameter     string
+		lambda        any
+		argument      any
+		expectedValue bool
+		expectedError bool
+	}{
 		{
 			name:      "predicate is true",
 			parameter: "x",
@@ -135,25 +139,27 @@ func TestPredicateCheck(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		p, err := New(test.parameter, test.lambda)
-		if p == nil || err != nil {
-			t.Errorf("%s: Unexpected error: p=%p error=%s", test.name, p, err)
-			continue
-		}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 
-		val, err := p.Test(test.argument)
-		if test.expectedValue != val {
-			t.Errorf("%s: Expected: %t, but got: %t",
-				test.name, test.expectedValue, val)
-		}
-
-		if test.expectedError != (err != nil) {
-			if test.expectedError {
-				t.Errorf("%s: Expected error, but got none", test.name)
-			} else {
-				t.Errorf("%s: Unexpected error: %s", test.name, err)
+			p, err := New(tc.parameter, tc.lambda)
+			if p == nil || err != nil {
+				t.Fatalf("%s: Unexpected error: p=%p error=%s", tc.name, p, err)
 			}
-		}
+
+			val, err := p.Test(tc.argument)
+			if tc.expectedValue != val {
+				t.Fatalf("Expected: %t, but got: %t", tc.expectedValue, val)
+			}
+
+			if tc.expectedError != (err != nil) {
+				if tc.expectedError {
+					t.Fatalf("Expected error, but got none")
+				} else {
+					t.Fatalf("Unexpected error: %s", err)
+				}
+			}
+		})
 	}
 }

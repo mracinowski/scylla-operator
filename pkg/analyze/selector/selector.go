@@ -30,12 +30,12 @@ func New() *Selector {
 	}
 }
 
-func (s *Selector) Select(name string, typ reflect.Type, filter any) *Selector {
+func (s *Selector) Select(name string, t reflect.Type, filter any) *Selector {
 	if s.error != nil {
 		return s
 	}
 
-	if !s.spec.Add(name, typ) {
+	if !s.spec.Add(name, t) {
 		s.error = fmt.Errorf("Duplicate %s definition", name)
 		return s
 	}
@@ -55,12 +55,12 @@ func (s *Selector) Select(name string, typ reflect.Type, filter any) *Selector {
 	return s
 }
 
-func (s *Selector) SelectWithNil(name string, typ reflect.Type, filter any) *Selector {
+func (s *Selector) SelectWithNil(name string, t reflect.Type, filter any) *Selector {
 	if s.error != nil {
 		return s
 	}
 
-	s.Select(name, typ, filter)
+	s.Select(name, t, filter)
 
 	s.nilable[name] = true
 
@@ -127,8 +127,8 @@ func (s *Selector) IteratorFromSnapshot(snapshot snapshot.Snapshot) (*Iterator, 
 
 	result := make(map[string][]any)
 
-	for name, typ := range s.spec.List() {
-		values := snapshot.List(typ)
+	for name, t := range s.spec.List() {
+		values := snapshot.List(t)
 
 		if filter := s.filter[name]; filter != nil {
 			var err error

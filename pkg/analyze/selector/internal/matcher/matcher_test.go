@@ -37,8 +37,8 @@ func MakeRelations(
 ) spec.Spec {
 	result := *spec.New()
 
-	for name, typ := range types {
-		if !result.Add(name, typ) {
+	for name, ty := range types {
+		if !result.Add(name, ty) {
 			t.Fatal("Invalid field")
 		}
 	}
@@ -79,15 +79,15 @@ func CompareMaps(x, y map[string]any) int {
 	return 0
 }
 
-type ForEachTest struct {
-	name      string
-	relations spec.Spec
-	values    map[string][]any
-	expected  []map[string]any
-}
-
 func TestForEach(t *testing.T) {
-	tests := []ForEachTest{
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		relations spec.Spec
+		values    map[string][]any
+		expected  []map[string]any
+	}{
 		{
 			name: "no relations",
 			relations: MakeRelations(t, map[string]reflect.Type{
@@ -152,26 +152,30 @@ func TestForEach(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		result := make([]map[string]any, 0, len(test.expected))
-		err := ForEach(&test.relations, test.values, func(values map[string]any) (bool, error) {
-			result = append(result, values)
-			return true, nil
-		})
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 
-		if err != nil {
-			t.Errorf("%s: Unexpected error: %s", test.name, err)
-		}
+			result := make([]map[string]any, 0, len(tc.expected))
+			err := ForEach(&tc.relations, tc.values, func(values map[string]any) (bool, error) {
+				result = append(result, values)
+				return true, nil
+			})
 
-		slices.SortFunc(test.expected, CompareMaps)
-		slices.SortFunc(result, CompareMaps)
-
-		if !slices.EqualFunc(test.expected, result, maps.Equal) {
-			t.Errorf("%s: Fail", test.name)
-
-			for i, match := range result {
-				t.Logf("%d: %+v", i, match)
+			if err != nil {
+				t.Fatalf("Unexpected error: %s", err)
 			}
-		}
+
+			slices.SortFunc(tc.expected, CompareMaps)
+			slices.SortFunc(result, CompareMaps)
+
+			if !slices.EqualFunc(tc.expected, result, maps.Equal) {
+				for i, match := range result {
+					t.Logf("%d: %+v", i, match)
+				}
+
+				t.FailNow()
+			}
+		})
 	}
 }
