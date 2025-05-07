@@ -73,14 +73,36 @@ func (p *relation) Check(
 			secondParameter, reflect.TypeOf(secondArgument), p.value.Type().In(1))
 	}
 
-	result := p.value.Call([]reflect.Value{
+	if p.value.Kind() != reflect.Func {
+		return false, fmt.Errorf("Invalid relation")
+	}
+
+	if p.value.Type().NumIn() != 2 {
+		return false, fmt.Errorf("Invalid relation")
+	}
+
+	results := p.value.Call([]reflect.Value{
 		reflect.ValueOf(firstArgument),
 		reflect.ValueOf(secondArgument),
 	})
 
-	if result[1].IsNil() {
-		return result[0].Interface().(bool), nil
+	if len(results) != 2 {
+		return false, fmt.Errorf("Invalid relation")
 	}
 
-	return result[0].Interface().(bool), result[1].Interface().(error)
+	result, ok := results[0].Interface().(bool)
+	if !ok {
+		return false, fmt.Errorf("Invalid relation")
+	}
+
+	if results[1].IsNil() {
+		return result, nil
+	}
+
+	err, ok := results[1].Interface().(error)
+	if !ok {
+		return false, fmt.Errorf("Invalid relation")
+	}
+
+	return result, err
 }
