@@ -2,30 +2,12 @@ package selector
 
 import (
 	"github.com/scylladb/scylla-operator/pkg/analyze/selector/internal/matcher"
-	"github.com/scylladb/scylla-operator/pkg/analyze/selector/internal/predicate"
 	"github.com/scylladb/scylla-operator/pkg/analyze/selector/internal/spec"
 )
 
 type Iterator struct {
 	spec   *spec.Spec
 	values map[string][]any
-}
-
-func filterValues(filter *predicate.Predicate, values []any) ([]any, error) {
-	result := make([]any, 0, len(values))
-
-	for _, value := range values {
-		res, err := filter.Test(value)
-		if err != nil {
-			return nil, err
-		}
-
-		if res {
-			result = append(result, value)
-		}
-	}
-
-	return result, nil
 }
 
 // Constructs a Iterator which calls callback for every match

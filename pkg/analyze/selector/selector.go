@@ -6,6 +6,7 @@ import (
 	"github.com/scylladb/scylla-operator/pkg/analyze/selector/internal/relation"
 	"github.com/scylladb/scylla-operator/pkg/analyze/selector/internal/spec"
 	"github.com/scylladb/scylla-operator/pkg/analyze/snapshot"
+	"github.com/scylladb/scylla-operator/pkg/helpers/slices"
 	"reflect"
 )
 
@@ -104,6 +105,21 @@ func (s *Selector) Where(name string, lambda any) *Selector {
 	return s
 }
 
+func filterWithError(array []any, filter *predicate.Predicate) ([]any, error) {
+	var err error
+
+	res := slices.Filter(array, func(value any) bool {
+		r, e := filter.Test(value)
+		if e != nil && err == nil {
+			err = e
+		}
+
+		return r
+	})
+
+	return res, err
+}
+
 func (s *Selector) IteratorFromSnapshot(snapshot snapshot.Snapshot) (*Iterator, error) {
 	if s.error != nil {
 		return nil, s.error
@@ -116,7 +132,7 @@ func (s *Selector) IteratorFromSnapshot(snapshot snapshot.Snapshot) (*Iterator, 
 
 		if filter := s.filter[name]; filter != nil {
 			var err error
-			values, err = filterValues(filter, values)
+			values, err = filterWithError(values, filter)
 			if err != nil {
 				return nil, err
 			}
