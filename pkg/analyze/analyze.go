@@ -7,6 +7,7 @@ import (
 	"github.com/scylladb/scylla-operator/pkg/analyze/symptoms"
 	"github.com/scylladb/scylla-operator/pkg/analyze/symptoms/rules"
 	"k8s.io/klog/v2"
+	"os"
 )
 
 func Analyze(ctx context.Context, ds snapshot.Snapshot) error {
@@ -20,7 +21,7 @@ func Analyze(ctx context.Context, ds snapshot.Snapshot) error {
 		}
 		if diag != nil {
 			for _, d := range diag {
-				err = front.Print(d, false)
+				err = front.Print(os.Stdout, d)
 				if err != nil {
 					return err
 				}

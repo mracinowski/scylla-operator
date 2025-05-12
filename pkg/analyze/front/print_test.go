@@ -2,63 +2,187 @@ package front
 
 import (
 	"bytes"
+	"github.com/google/go-cmp/cmp"
 	"github.com/scylladb/scylla-operator/pkg/analyze/symptoms"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"os"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"strings"
 	"testing"
 )
 
+func resourceWithGVK(res runtime.Object, gvk schema.GroupVersionKind) any {
+	res.GetObjectKind().SetGroupVersionKind(gvk)
+	return res
+}
+
 func TestPrint(t *testing.T) {
-	stdout := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
-
-	defer func() {
-		os.Stdout = stdout
-	}()
-
-	symptom := symptoms.NewSymptom("name", []string{"diag1", "diag2"}, []string{"sugg1", "sugg2"}, nil)
-	resources := map[string]any{
-		"pod": &v1.Pod{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "pod1",
+	tt := []struct {
+		name      string
+		symptom   symptoms.Symptom
+		resources map[string]any
+		expected  string
+	}{
+		{
+			name:    "Simple issue",
+			symptom: symptoms.NewSymptom("name", []string{"diag1", "diag2"}, []string{"sugg1", "sugg2"}, nil),
+			resources: map[string]any{
+				"pod": &v1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "pod1",
+					},
+				},
+				"serviceAccount": &v1.ServiceAccount{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "serviceAccount1",
+					},
+				},
 			},
+			expected: strings.TrimSpace(`
+name
+Diagnoses:
+	diag1
+	diag2
+Suggestions:
+	sugg1
+	sugg2
+Resources GVK:
+	No GVK set
+	No GVK set
+`) + "\n",
 		},
-		"serviceAccount": &v1.ServiceAccount{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "serviceAccount1",
+		{
+			name:    "No diagnoses",
+			symptom: symptoms.NewSymptom("No diag symptom", nil, []string{"sugg1", "sugg2"}, nil),
+			resources: map[string]any{
+				"pod": &v1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "pod1",
+					},
+				},
+				"serviceAccount": &v1.ServiceAccount{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "serviceAccount1",
+					},
+				},
 			},
+			expected: strings.TrimSpace(`
+No diag symptom
+No Diagnoses
+Suggestions:
+	sugg1
+	sugg2
+Resources GVK:
+	No GVK set
+	No GVK set
+`) + "\n",
+		},
+		{
+			name:    "No suggestions",
+			symptom: symptoms.NewSymptom("name", []string{"diag1", "diag2"}, nil, nil),
+			resources: map[string]any{
+				"pod": &v1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "pod1",
+					},
+				},
+				"serviceAccount": &v1.ServiceAccount{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "serviceAccount1",
+					},
+				},
+			},
+			expected: strings.TrimSpace(`
+name
+Diagnoses:
+	diag1
+	diag2
+No suggestions
+Resources GVK:
+	No GVK set
+	No GVK set
+`) + "\n",
+		},
+		{
+			name:      "No resources",
+			symptom:   symptoms.NewSymptom("name", []string{"diag1", "diag2"}, []string{"sugg1", "sugg2"}, nil),
+			resources: nil,
+			expected: strings.TrimSpace(`
+name
+Diagnoses:
+	diag1
+	diag2
+Suggestions:
+	sugg1
+	sugg2
+No resources related to this issue.
+`) + "\n",
+		},
+		{
+			name:      "No symptom",
+			symptom:   nil,
+			resources: nil,
+			expected: strings.TrimSpace(`
+No symptom
+No resources related to this issue.
+`) + "\n",
+		},
+		{
+			name:    "Resources with GVK",
+			symptom: symptoms.NewSymptom("name", []string{"diag1", "diag2"}, []string{"sugg1", "sugg2"}, nil),
+			resources: map[string]any{
+				"pod": resourceWithGVK(
+					&v1.Pod{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "pod1",
+						},
+					},
+					schema.GroupVersionKind{Group: "Pod-group", Version: "v1", Kind: "Pod"},
+				),
+				"serviceAccount": resourceWithGVK(
+					&v1.ServiceAccount{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "serviceAccount1",
+						},
+					},
+					schema.GroupVersionKind{Group: "Service-account-group", Version: "v1", Kind: "Service account"},
+				),
+			},
+			expected: strings.TrimSpace(`
+name
+Diagnoses:
+	diag1
+	diag2
+Suggestions:
+	sugg1
+	sugg2
+Resources GVK:
+	Pod-group/v1, Kind=Pod
+	Service-account-group/v1, Kind=Service account
+`) + "\n",
 		},
 	}
-	issue := symptoms.NewIssue(&symptom, resources)
 
-	const (
-		bold       = "\033[1m"
-		red        = "\033[31m"
-		yellow     = "\033[93m"
-		blue       = "\033[34m"
-		resetStyle = "\033[0m"
-	)
-	expected := bold + red + "name" + resetStyle + "\n\n"
-	expected += red + "diag1" + resetStyle + "\n" + red + "diag2" + resetStyle + "\n\n"
-	expected += blue + "sugg1" + resetStyle + "\n" + blue + "sugg2" + resetStyle + "\n\n"
-	expected += yellow + "Related resources:" + resetStyle + "\n"
-	expected += yellow + "             pod -> pod1" + resetStyle + "\n"
-	expected += yellow + "  serviceAccount -> serviceAccount1" + resetStyle + "\n\n"
-
-	expected += bold + red + "name" + resetStyle + "\n"
-
-	Print(issue, false)
-	Print(issue, true)
-
-	var buf bytes.Buffer
-	w.Close()
-	buf.ReadFrom(r)
-	r.Close()
-	output := buf.String()
-
-	if output != expected {
-		t.Errorf("expected %q got %q", expected, output)
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var issue symptoms.Issue
+			if tc.symptom != nil { //Allow tests with nil symptom pointer
+				issue = symptoms.NewIssue(&(tc.symptom), tc.resources)
+			} else {
+				issue = symptoms.NewIssue(nil, tc.resources)
+			}
+			var buf bytes.Buffer
+			err := Print(&buf, issue)
+			if err != nil {
+				t.Fatalf("expected no error, got: %v", err)
+			}
+			got := buf.String()
+			if diff := cmp.Diff(tc.expected, got); diff != "" {
+				t.Errorf("Expected and actual output differ:\n%s", diff)
+			}
+		})
 	}
+
 }
