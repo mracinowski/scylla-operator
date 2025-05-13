@@ -8,7 +8,7 @@ import (
 
 var tmpl *template.Template
 
-func init(){
+func init() {
 	tmpl = template.Must(template.New("all").Parse(`
 {{ define "resource" -}}
 {{- "\t" -}}    Group: {{ .GetObjectKind.GroupVersionKind.Group }}
