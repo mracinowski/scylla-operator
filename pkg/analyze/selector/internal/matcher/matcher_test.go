@@ -79,7 +79,7 @@ func CompareMaps(x, y map[string]any) int {
 	return 0
 }
 
-func TestForEach(t *testing.T) {
+func TestMatch(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -157,7 +157,7 @@ func TestForEach(t *testing.T) {
 			t.Parallel()
 
 			result := make([]map[string]any, 0, len(tc.expected))
-			err := ForEach(&tc.relations, tc.values, func(values map[string]any) (bool, error) {
+			err := Match(&tc.relations, tc.values, func(values map[string]any) (bool, error) {
 				result = append(result, values)
 				return true, nil
 			})

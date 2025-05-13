@@ -12,13 +12,13 @@ type Iterator struct {
 
 // Constructs a Iterator which calls callback for every match
 func (it *Iterator) ForEach(callback func(map[string]any) (bool, error)) error {
-	return matcher.ForEach(it.spec, it.values, callback)
+	return matcher.Match(it.spec, it.values, callback)
 }
 
 // Constructs a Iterator which returns a slice of matches
 func (it *Iterator) Collect() ([]map[string]any, error) {
 	result := make([]map[string]any, 0)
-	err := matcher.ForEach(it.spec, it.values, func(values map[string]any) (bool, error) {
+	err := matcher.Match(it.spec, it.values, func(values map[string]any) (bool, error) {
 		result = append(result, values)
 		return true, nil
 	})
@@ -33,7 +33,7 @@ func (it *Iterator) Collect() ([]map[string]any, error) {
 // Constructs a Iterator which returns a slice of at most n matches
 func (it *Iterator) Take(n int) ([]map[string]any, error) {
 	result := make([]map[string]any, 0)
-	err := matcher.ForEach(it.spec, it.values, func(values map[string]any) (bool, error) {
+	err := matcher.Match(it.spec, it.values, func(values map[string]any) (bool, error) {
 		result = append(result, values)
 		return len(result) < n, nil
 	})

@@ -9,101 +9,100 @@ import (
 	"slices"
 )
 
-type matcher struct {
-	labels []string
-	spec   *spec.Spec
-	values map[string][]any
-}
-
-func ForEach(
+// Match calls callback for every selection of values from resources that
+// satisfy all constraints in spec.
+// Given callback should return whether calls on further results should be
+// performed.
+func Match(
 	spec *spec.Spec,
-	values map[string][]any,
+	resources map[string][]any,
 	callback func(map[string]any) (bool, error),
 ) error {
-	labels := make([]string, 0)
+	kinds := make([]string, 0)
 
-	for label := range spec.List() {
-		labels = append(labels, label)
-		if _, contains := values[label]; !contains {
-			return fmt.Errorf("Missing key %s", label)
+	for kind := range spec.List() {
+		kinds = append(kinds, kind)
+		if _, contains := resources[kind]; !contains {
+			return fmt.Errorf("Missing key %s", kind)
 		}
 	}
 
-	slices.SortFunc(labels, func(lhs, rhs string) int {
-		return cmp.Compare(len(values[lhs]), len(values[rhs]))
+	slices.SortFunc(kinds, func(lhs, rhs string) int {
+		return cmp.Compare(len(resources[lhs]), len(resources[rhs]))
 	})
 
-	_, err := (&matcher{
-		labels: labels,
-		spec:   spec,
-		values: values,
-	}).forEach(make(map[string]any, len(labels)), callback)
+	_, err := match(spec, kinds, resources, make(map[string]any, len(kinds)), callback)
 
 	return err
 }
 
-func (it *matcher) forEach(
+func match(
+	spec *spec.Spec,
+	orderedKinds []string,
+	resources map[string][]any,
 	prefix map[string]any,
 	callback func(map[string]any) (bool, error),
 ) (bool, error) {
-	if len(prefix) >= len(it.labels) {
+	if len(prefix) >= len(orderedKinds) {
 		return callback(maps.Clone(prefix))
 	}
 
-	label := it.labels[len(prefix)]
-	for _, value := range it.values[label] {
-		prefix[label] = value
+	kind := orderedKinds[len(prefix)]
+	for _, resource := range resources[kind] {
+		prefix[kind] = resource
 
-		canAppend, err := it.canAppend(prefix, label, value)
+		appendable, err := doesMatchSpec(spec, resources, prefix, kind, resource)
 		if err != nil {
 			return false, err
 		}
 
-		if canAppend {
-			continu, err := it.forEach(prefix, callback)
+		if appendable {
+			continu, err := match(spec, orderedKinds, resources, prefix, callback)
 
 			if !continu || err != nil {
 				return false, err
 			}
 		}
 
-		delete(prefix, label)
+		delete(prefix, kind)
 	}
 
 	return true, nil
 }
 
-func (it *matcher) canAppend(
+func doesMatchSpec(
+	spec *spec.Spec,
+	resources map[string][]any,
 	selection map[string]any,
-	newLabel string,
-	newValue any,
+	newKind string,
+	newResource any,
 ) (bool, error) {
-	for otherLabel, otherValue := range selection {
-		relation := it.spec.Relation(otherLabel, newLabel)
+	for otherKind, otherResource := range selection {
+		relation := spec.Relation(otherKind, newKind)
 
-		if otherValue != nil && newValue != nil {
+		if otherResource != nil && newResource != nil {
 			if relation == nil {
 				continue
 			}
 
 			related, err := relation.Check(
-				otherLabel, otherValue,
-				newLabel, newValue,
+				otherKind, otherResource,
+				newKind, newResource,
 			)
 			if !related || err != nil {
 				return false, err
 			}
-		} else if otherValue != nil && newValue == nil {
+		} else if otherResource != nil && newResource == nil {
 			result, err := checkRelationWithNil(
-				otherLabel, otherValue, newLabel, it.values[newLabel], relation,
+				otherKind, otherResource, newKind, resources[newKind], relation,
 			)
 
 			if !result || err != nil {
 				return false, err
 			}
-		} else if otherValue == nil && newValue != nil {
+		} else if otherResource == nil && newResource != nil {
 			result, err := checkRelationWithNil(
-				newLabel, newValue, otherLabel, it.values[otherLabel], relation,
+				newKind, newResource, otherKind, resources[otherKind], relation,
 			)
 
 			if !result || err != nil {
@@ -118,22 +117,22 @@ func (it *matcher) canAppend(
 }
 
 func checkRelationWithNil(
-	presentLabel string,
-	presentValue any,
-	absentLabel string,
-	absentValues []any,
+	presentKind string,
+	presentResource any,
+	absentKind string,
+	absentResources []any,
 	relation relation.Relation,
 ) (bool, error) {
 	if relation == nil {
 		return true, nil
 	}
 
-	for _, absentValue := range absentValues {
-		if absentValue == nil {
+	for _, absentResource := range absentResources {
+		if absentResource == nil {
 			continue
 		}
 
-		related, err := relation.Check(presentLabel, presentValue, absentLabel, absentValue)
+		related, err := relation.Check(presentKind, presentResource, absentKind, absentResource)
 		if related || err != nil {
 			return false, err
 		}
