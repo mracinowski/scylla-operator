@@ -6,9 +6,10 @@ import (
 	"text/template"
 )
 
-func Print(writer io.Writer, issues []symptoms.Issue) error {
+var tmpl *template.Template
 
-	tmpl, err := template.New("all").Parse(`
+func init(){
+	tmpl = template.Must(template.New("all").Parse(`
 {{ define "resource" -}}
 {{- "\t" -}}    Group: {{ .GetObjectKind.GroupVersionKind.Group }}
 {{- "\n\t" -}}  Version: {{ .GetObjectKind.GroupVersionKind.Version }}
@@ -40,26 +41,12 @@ Resources:
 No resourcesrelated to this issue.
 {{- end -}}
 {{- end}}
+`))
+}
 
+func Print(writer io.Writer, issue symptoms.Issue) error {
 
-{{define "issues" -}}
-{{- if . -}}
-{{- range . -}}
-{{- template "issue" . -}}
----
-{{end -}}
-{{else -}}
-No problems found
-{{end}}
-{{- end}}
-`)
-	if err != nil {
-		return err
-	}
+	err := tmpl.ExecuteTemplate(writer, "issue", issue)
 
-	tmpl.ExecuteTemplate(writer, "issues", issues)
-	//return nil
-	//fmt.Println((*issues[0].Symptom).Diagnoses())
-
-	return nil
+	return err
 }

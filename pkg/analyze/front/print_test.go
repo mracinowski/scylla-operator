@@ -67,18 +67,14 @@ func TestPrint(t *testing.T) {
 
 	tt := []struct {
 		name     string
-		sym      []symptoms.Symptom
-		res      []map[string]any
+		sym      symptoms.Symptom
+		res      map[string]any
 		expected string
 	}{
 		{
 			name: "Simple issue",
-			sym: []symptoms.Symptom{
-				symptoms.NewSymptom("name", []string{"diag1", "diag2"}, []string{"sugg1", "sugg2"}, nil),
-			},
-			res: []map[string]any{
-				nil,
-			},
+			sym:  symptoms.NewSymptom("name", []string{"diag1", "diag2"}, []string{"sugg1", "sugg2"}, nil),
+			res: nil,
 			expected: "",
 		},
 	}
@@ -86,16 +82,9 @@ func TestPrint(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			issues := make([]symptoms.Issue, 0)
-			if len(tc.sym)!=len(tc.res){
-				t.Fatalf("Bad test")
-			}
-			for i := 0; i<len(tc.sym); i++ {
-				issue := symptoms.NewIssue(&(tc.sym[i]), tc.res[i])
-				issues = append(issues, issue)
-			}
+			issue := symptoms.NewIssue(&(tc.sym), tc.res)
 			var buf bytes.Buffer
-			Print(&buf, issues)
+			Print(&buf, issue)
 			got := buf.String()
 			if diff := cmp.Diff(tc.expected, got); diff != "" {
 				t.Errorf("Expected and actual output differ:\n%s", diff)
