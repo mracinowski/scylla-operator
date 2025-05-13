@@ -38,7 +38,7 @@ Resources:
 {{- template "resource" . -}}
 {{- end -}}
 {{else}}
-No resourcesrelated to this issue.
+No resources related to this issue.
 {{- end -}}
 {{- end}}
 `))
