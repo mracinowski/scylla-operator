@@ -11,35 +11,48 @@ var tmpl *template.Template
 func init() {
 	tmpl = template.Must(template.New("all").Parse(`
 {{ define "resource" -}}
-{{- "\t" -}}    Group: {{ .GetObjectKind.GroupVersionKind.Group }}
-{{- "\n\t" -}}  Version: {{ .GetObjectKind.GroupVersionKind.Version }}
-{{- "\n\t" -}}  Kind: {{ .GetObjectKind.GroupVersionKind.Kind }}
-{{- "\n\t" -}}  ---
+	{{- if .GetObjectKind.GroupVersionKind.Empty -}}
+		{{- "\t" -}} No GVK set {{- "\n" -}}
+	{{- else -}}
+		{{- "\t" -}}{{- .GetObjectKind.GroupVersionKind.String -}} {{- "\n" -}}
+	{{- end -}}
+{{end}}
+
+{{ define "symptom" -}}
+	{{.Name}} {{- "\n" -}}
+	{{- if .Diagnoses -}}
+		Diagnoses: {{- "\n" -}}
+		{{- range .Diagnoses -}}
+			{{ "\t" }}{{.}} {{- "\n" -}}
+		{{- end -}}
+	{{- else -}}
+		No Diagnoses {{- "\n" -}}
+	{{- end -}}
+	{{- if .Suggestions -}}
+		Suggestions: {{- "\n" -}}
+		{{- range .Suggestions -}}
+			{{ "\t" }}{{.}} {{- "\n" -}}
+	{{- end -}}
+	{{- else -}}
+		No suggestions {{- "\n" -}}
+	{{- end -}}
 {{end}}
 
 
 {{ define "issue" -}}
-{{.Symptom.Name}}
-Diagnoses:
-{{- range .Symptom.Diagnoses}}
-{{ "\t" }}{{.}}
-{{- end -}}
-{{- if .Symptom.Suggestions}}
-Suggestions:
-{{- range .Symptom.Suggestions}}
-{{ "\t" }}{{.}}
-{{- end -}}
-{{else}}
-No suggestions
-{{- end -}}
-{{if .Resources}}
-Resources:
-{{range .Resources -}}
-{{- template "resource" . -}}
-{{- end -}}
-{{else}}
-No resources related to this issue.
-{{- end -}}
+	{{if .Symptom}}
+		{{- template "symptom" .Symptom -}}
+	{{else -}}
+		No symptom {{- "\n" -}}
+	{{- end}}
+	{{- if .Resources -}}
+		Resources GVK: {{- "\n" -}}
+		{{- range .Resources -}}
+			{{- template "resource" . -}}
+		{{- end -}}
+	{{- else -}}
+		No resources related to this issue. {{- "\n" -}}
+	{{- end -}}
 {{- end}}
 `))
 }
