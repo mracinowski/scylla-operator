@@ -46,9 +46,9 @@ func MeetsCondition(res any, condType string, condStatus metav1.ConditionStatus)
 func MeetsNodeSelectorPlacementRules(node *v1.Node, nodeSelector map[string]string) bool {
 	for label, value := range node.Labels {
 		v, exists := nodeSelector[label]
-		if exists && v == value {
-			return true
+		if !exists || v != value {
+			return false
 		}
 	}
-	return false
+	return true
 }
