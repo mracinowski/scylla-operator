@@ -2,6 +2,7 @@ package analyze
 
 import (
 	"context"
+	"fmt"
 	"github.com/scylladb/scylla-operator/pkg/analyze/front"
 	"github.com/scylladb/scylla-operator/pkg/analyze/snapshot"
 	"github.com/scylladb/scylla-operator/pkg/analyze/symptoms"
@@ -16,8 +17,7 @@ func Analyze(ctx context.Context, ds snapshot.Snapshot) error {
 	for _, tree := range rules.Symptoms {
 		diag, _, err := symptoms.MatchTree(tree, ds)
 		if err != nil {
-			klog.Warningf("Error when matching symptom %s: %v", tree.Symptom().Name(), err)
-			return err
+			return fmt.Errorf("Error when matching symptom %s: %v", tree.Symptom().Name(), err)
 		}
 		if diag != nil {
 			for _, d := range diag {
