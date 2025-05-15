@@ -22,7 +22,6 @@ func MatchTree(node SymptomTreeNode, ds snapshot.Snapshot) ([]Issue, bool, error
 		if node.Symptom() == nil {
 			return nil, false, fmt.Errorf("symptom %v: Can't match symptom node with nil symptom", node.Name())
 		}
-		diags := make([]Issue, 0)
 		diags, matched, err := node.MatchChildren(ds)
 		if err != nil {
 			return nil, false, err
