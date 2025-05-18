@@ -10,11 +10,19 @@ var tmpl *template.Template
 
 func init() {
 	tmpl = template.Must(template.New("all").Parse(`
-{{ define "resource" -}}
-	{{- if .GetObjectKind.GroupVersionKind.Empty -}}
-		{{- "\t" -}} No GVK set {{- "\n" -}}
-	{{- else -}}
-		{{- "\t" -}}{{- .GetObjectKind.GroupVersionKind.String -}} {{- "\n" -}}
+{{ define "resources" -}}
+	Resources GVK: {{- "\n" -}}
+	{{- range $key, $value := . -}}
+		{{- "\t" -}}{{- $key -}}{{ ": " }}
+		{{- if $value -}}
+			{{- if $value.GetObjectKind.GroupVersionKind.Empty -}}
+				No GVK set {{- "\n" -}}
+			{{- else -}}
+				{{- $value.GetObjectKind.GroupVersionKind.String -}} {{- "\n" -}}
+			{{- end -}}
+		{{- else -}}
+			Missing resource {{- "\n" -}}
+		{{- end -}}
 	{{- end -}}
 {{end}}
 
@@ -46,13 +54,11 @@ func init() {
 		No symptom {{- "\n" -}}
 	{{- end}}
 	{{- if .Resources -}}
-		Resources GVK: {{- "\n" -}}
-		{{- range .Resources -}}
-			{{- template "resource" . -}}
-		{{- end -}}
+	    {{- template "resources" .Resources -}}
 	{{- else -}}
 		No resources related to this issue. {{- "\n" -}}
 	{{- end -}}
+	--- {{- "\n" -}}
 {{- end}}
 `))
 }

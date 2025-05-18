@@ -48,8 +48,9 @@ Suggestions:
 	sugg1
 	sugg2
 Resources GVK:
-	No GVK set
-	No GVK set
+	pod: No GVK set
+	serviceAccount: No GVK set
+---
 `) + "\n",
 		},
 		{
@@ -74,8 +75,9 @@ Suggestions:
 	sugg1
 	sugg2
 Resources GVK:
-	No GVK set
-	No GVK set
+	pod: No GVK set
+	serviceAccount: No GVK set
+---
 `) + "\n",
 		},
 		{
@@ -100,8 +102,9 @@ Diagnoses:
 	diag2
 No suggestions
 Resources GVK:
-	No GVK set
-	No GVK set
+	pod: No GVK set
+	serviceAccount: No GVK set
+---
 `) + "\n",
 		},
 		{
@@ -117,6 +120,7 @@ Suggestions:
 	sugg1
 	sugg2
 No resources related to this issue.
+---
 `) + "\n",
 		},
 		{
@@ -126,6 +130,7 @@ No resources related to this issue.
 			expected: strings.TrimSpace(`
 No symptom
 No resources related to this issue.
+---
 `) + "\n",
 		},
 		{
@@ -158,8 +163,28 @@ Suggestions:
 	sugg1
 	sugg2
 Resources GVK:
-	Pod-group/v1, Kind=Pod
-	Service-account-group/v1, Kind=Service account
+	pod: Pod-group/v1, Kind=Pod
+	serviceAccount: Service-account-group/v1, Kind=Service account
+---
+`) + "\n",
+		},
+		{
+			name:    "Missing resources",
+			symptom: symptoms.NewSymptom("name", []string{"diag1", "diag2"}, []string{"sugg1", "sugg2"}, nil),
+			resources: map[string]any{
+				"csi-driver": nil,
+			},
+			expected: strings.TrimSpace(`
+name
+Diagnoses:
+	diag1
+	diag2
+Suggestions:
+	sugg1
+	sugg2
+Resources GVK:
+	csi-driver: Missing resource
+---
 `) + "\n",
 		},
 	}
