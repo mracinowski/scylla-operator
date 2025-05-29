@@ -187,6 +187,16 @@ Resources GVK:
 ---
 `) + "\n",
 		},
+		{
+			name:	"Symptoms with diagnoses and suggestions \"Node group\" get ignored",
+			symptom: symptoms.NewSymptomTreeNodeGroup("test", nil).Symptom(),
+			resources: nil,
+			expected: strings.TrimSpace(`
+No symptom
+No resources related to this issue.
+---
+`) + "\n",
+		},
 	}
 
 	for _, tc := range tt {
