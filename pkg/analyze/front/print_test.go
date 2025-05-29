@@ -187,8 +187,8 @@ No resources related to this issue.
 `) + "\n",
 		},
 		{
-			name:	"Symptoms with diagnoses and suggestions \"Node group\" get ignored",
-			symptom: symptoms.NewSymptomTreeNodeGroup("test", nil).Symptom(),
+			name:      "Symptoms with diagnoses and suggestions \"Node group\" get ignored",
+			symptom:   symptoms.NewSymptomTreeNodeGroup("test", nil).Symptom(),
 			resources: nil,
 			expected: strings.TrimSpace(`
 No symptom

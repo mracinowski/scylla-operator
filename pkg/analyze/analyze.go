@@ -21,7 +21,7 @@ func Analyze(ctx context.Context, ds snapshot.Snapshot) error {
 			return fmt.Errorf("Error when matching symptom %s: %v", tree.Symptom().Name(), err)
 		}
 		if diag != nil {
-			foundIssues+=1
+			foundIssues++
 			for _, d := range diag {
 				err = front.Print(os.Stdout, d)
 				if err != nil {
