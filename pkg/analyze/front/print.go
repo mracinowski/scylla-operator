@@ -11,8 +11,21 @@ import (
 var tmpl_string string
 var tmpl *template.Template
 
+func hasValidResources(resources map[string]any) bool {
+    for _, r := range resources {
+        if r != nil {
+            return true
+        }
+    }
+    return false
+}
+
 func init() {
-	tmpl = template.Must(template.New("all").Parse(tmpl_string))
+	tmpl = template.Must(template.New("all").
+	Funcs(template.FuncMap{
+			"HasValidResources": hasValidResources,
+	}).
+	Parse(tmpl_string))
 }
 
 func Print(writer io.Writer, issue symptoms.Issue) error {

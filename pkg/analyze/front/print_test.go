@@ -48,8 +48,8 @@ Suggestions:
 	sugg1
 	sugg2
 Resources GVK:
-	pod: No GVK set
-	serviceAccount: No GVK set
+	No GVK set
+	No GVK set
 ---
 `) + "\n",
 		},
@@ -75,8 +75,8 @@ Suggestions:
 	sugg1
 	sugg2
 Resources GVK:
-	pod: No GVK set
-	serviceAccount: No GVK set
+	No GVK set
+	No GVK set
 ---
 `) + "\n",
 		},
@@ -102,8 +102,8 @@ Diagnoses:
 	diag2
 No suggestions
 Resources GVK:
-	pod: No GVK set
-	serviceAccount: No GVK set
+	No GVK set
+	No GVK set
 ---
 `) + "\n",
 		},
@@ -163,8 +163,8 @@ Suggestions:
 	sugg1
 	sugg2
 Resources GVK:
-	pod: Pod-group/v1, Kind=Pod
-	serviceAccount: Service-account-group/v1, Kind=Service account
+	Pod-group/v1, Kind=Pod ()
+	Service-account-group/v1, Kind=Service account ()
 ---
 `) + "\n",
 		},
@@ -182,8 +182,7 @@ Diagnoses:
 Suggestions:
 	sugg1
 	sugg2
-Resources GVK:
-	csi-driver: Missing resource
+No resources related to this issue.
 ---
 `) + "\n",
 		},
