@@ -48,7 +48,7 @@ func init() {
 
 
 {{ define "issue" -}}
-	{{if .Symptom}}
+	{{- if and .Symptom (ne (index .Symptom.Diagnoses 0) "Node group") -}}
 		{{- template "symptom" .Symptom -}}
 	{{else -}}
 		No symptom {{- "\n" -}}
