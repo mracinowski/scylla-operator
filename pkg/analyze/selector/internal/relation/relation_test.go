@@ -15,7 +15,7 @@ func TestRelationCheck(t *testing.T) {
 		firstArgument   any
 		secondArgument  any
 		expectedValue   bool
-		expectedError   bool
+		expectedError   error
 	}{
 		{
 			name:            "simple",
@@ -27,7 +27,7 @@ func TestRelationCheck(t *testing.T) {
 			firstArgument:  1,
 			secondArgument: 2,
 			expectedValue:  true,
-			expectedError:  false,
+			expectedError:  nil,
 		},
 	}
 
@@ -37,7 +37,7 @@ func TestRelationCheck(t *testing.T) {
 
 			r, err := New(tc.firstParameter, tc.secondParameter, tc.lambda)
 			if r == nil || err != nil {
-				t.Fatalf("%s: Unexpected error: p=%p error=%s", tc.name, r, err)
+				t.Fatalf("Unexpected error in New: %s (result: %p)", err, r)
 			}
 
 			val, err := r.Check(
@@ -45,16 +45,16 @@ func TestRelationCheck(t *testing.T) {
 				tc.secondParameter, tc.secondArgument,
 			)
 
-			if tc.expectedValue != val {
-				t.Fatalf("Expected: %t, but got: %t", tc.expectedValue, val)
+			if tc.expectedError != err {
+				if tc.expectedError == nil {
+					t.Fatalf("Unexpected error: %s", err)
+				} else {
+					t.Fatalf("Expected error: %s, but got %s", tc.expectedError, err)
+				}
 			}
 
-			if tc.expectedError != (err != nil) {
-				if tc.expectedError {
-					t.Fatal("Expected error, but got none")
-				} else {
-					t.Fatalf("Unexpected error: %s", err)
-				}
+			if tc.expectedValue != val {
+				t.Fatalf("Expected: %t, but got: %t", tc.expectedValue, val)
 			}
 		})
 	}
