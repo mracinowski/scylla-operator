@@ -166,213 +166,238 @@ func makeNicer(m map[string]any) map[string]string {
 	return nicer
 }
 
-func TestNewEmptySymptomSet_IsEmpty(t *testing.T) {
-	t.Parallel()
-	// given
-	expectedName := "dummySet"
+func TestSymptoms(t *testing.T) {
+	tt := []struct {
+		name     string
+		testFunc func(*testing.T)
+	}{
+		{
+			name: "Empty symptom set",
+			testFunc: func(t *testing.T) {
+				// given
+				expectedName := "dummySet"
 
-	// when
-	set := NewEmptySymptomNode(expectedName)
+				// when
+				set := NewEmptySymptomNode(expectedName)
 
-	// then
-	if set.Name() != expectedName {
-		t.Errorf("name differs - got %s, wwant %s", set.Name(), expectedName)
-	}
-	if set.Symptom() != nil {
-		t.Errorf("Symptom is not nil - got %v", set.Symptom())
-	}
-	if len(set.Children()) > 0 {
-		t.Errorf("Children() is not empty - got %v", set.Children())
-	}
-	if set.Parent() != nil {
-		t.Errorf("Parent() is not nil - got %v", set.Parent())
-	}
-}
-
-func TestNewEmptySymptomSet_IsNotEmpty(t *testing.T) {
-	t.Parallel()
-	// given
-	expectedName := "dummySet"
-	child1Name := "child1"
-	child2Name := "child2"
-	child1 := NewEmptySymptomNode(child1Name)
-	child2 := NewEmptySymptomNode(child2Name)
-	children := []SymptomTreeNode{child1, child2}
-
-	// when
-	set := NewSymptomTreeNodeWithChildren(expectedName, nil, nil, children...)
-	//set := NewSymptomSet(expectedName, children)
-
-	// then
-	if set.Name() != expectedName {
-		t.Errorf("name differs - got %s, wwant %s", set.Name(), expectedName)
-	}
-	if set.Symptom() != nil {
-		t.Errorf("Symptom() is not empty - got %v", set.Symptom())
-	}
-	if set.Parent() != nil {
-		t.Fatalf("Parent() is not nil - got %v", set.Parent())
-	}
-
-	for _, child := range children {
-		found := false
-		for k, ds := range set.Children() {
-			if child.Name() == k {
-				found = true
-				if ds.Parent() == nil || ds.Parent().Name() != set.Name() {
-					t.Errorf("wrong parent for %s - got %v, want %v", k, ds.Parent(), &set)
+				// then
+				if set.Name() != expectedName {
+					t.Errorf("name differs - got %s, wwant %s", set.Name(), expectedName)
 				}
-				if ds.Symptom() != nil {
-					t.Errorf("Symptom() is not empty for %s - got %v", k, set.Symptom())
+				if set.Symptom() != nil {
+					t.Errorf("Symptom is not nil - got %v", set.Symptom())
 				}
-				if len(ds.Children()) > 0 {
-					t.Errorf("Children() is not empty for %s - got %v", k, set.Children())
+				if len(set.Children()) > 0 {
+					t.Errorf("Children() is not empty - got %v", set.Children())
 				}
-			}
-		}
-		if !found {
-			t.Errorf("child missing: %s", child.Name())
-		}
-	}
-}
+				if set.Parent() != nil {
+					t.Errorf("Parent() is not nil - got %v", set.Parent())
+				}
+			},
+		},
+		{
+			name: "Non-empty symptom set",
+			testFunc: func(t *testing.T) {
+				// given
+				expectedName := "dummySet"
+				child1Name := "child1"
+				child2Name := "child2"
+				child1 := NewEmptySymptomNode(child1Name)
+				child2 := NewEmptySymptomNode(child2Name)
+				children := []SymptomTreeNode{child1, child2}
 
-func TestSymptomTreeNode_SetSymptom_ShouldSetValidSymptom(t *testing.T) {
-	t.Parallel()
-	// given
-	ss := NewEmptySymptomNode("symptomSet")
-	s := newFakeSymptom("symptom", func(snapshot.Snapshot) ([]Issue, error) { return nil, nil })
+				// when
+				set := NewSymptomTreeNodeWithChildren(expectedName, nil, nil, children...)
+				//set := NewSymptomSet(expectedName, children)
 
-	// when
-	err := ss.SetSymptom(s)
+				// then
+				if set.Name() != expectedName {
+					t.Errorf("name differs - got %s, wwant %s", set.Name(), expectedName)
+				}
+				if set.Symptom() != nil {
+					t.Errorf("Symptom() is not empty - got %v", set.Symptom())
+				}
+				if set.Parent() != nil {
+					t.Fatalf("Parent() is not nil - got %v", set.Parent())
+				}
 
-	// then
-	if err != nil {
-		t.Fatalf("add shouldn't return an error %v", err)
-	}
-	if ss.Symptom() == nil {
-		t.Fatalf("symptom shouldn't be nil, got nil, want %v", s)
-	}
-	if ss.Symptom().Name() != "symptom" {
-		t.Errorf("symptom name invalid, got %s want symptom", ss.Symptom().Name())
-	}
-}
+				for _, child := range children {
+					found := false
+					for k, ds := range set.Children() {
+						if child.Name() == k {
+							found = true
+							if ds.Parent() == nil || ds.Parent().Name() != set.Name() {
+								t.Errorf("wrong parent for %s - got %v, want %v", k, ds.Parent(), &set)
+							}
+							if ds.Symptom() != nil {
+								t.Errorf("Symptom() is not empty for %s - got %v", k, set.Symptom())
+							}
+							if len(ds.Children()) > 0 {
+								t.Errorf("Children() is not empty for %s - got %v", k, set.Children())
+							}
+						}
+					}
+					if !found {
+						t.Errorf("child missing: %s", child.Name())
+					}
+				}
+			},
+		},
+		{
+			name: "SetSymptom with valid symptom",
+			testFunc: func(t *testing.T) {
+				// given
+				ss := NewEmptySymptomNode("symptomSet")
+				s := newFakeSymptom("symptom", func(snapshot.Snapshot) ([]Issue, error) { return nil, nil })
 
-func TestSymptomTreeNode_SetSymptom_ShouldReturnAnErrorGivenNil(t *testing.T) {
-	t.Parallel()
-	// given
-	ss := NewEmptySymptomNode("symptomSet")
+				// when
+				err := ss.SetSymptom(s)
 
-	// when
-	err := ss.SetSymptom(nil)
+				// then
+				if err != nil {
+					t.Fatalf("add shouldn't return an error %v", err)
+				}
+				if ss.Symptom() == nil {
+					t.Fatalf("symptom shouldn't be nil, got nil, want %v", s)
+				}
+				if ss.Symptom().Name() != "symptom" {
+					t.Errorf("symptom name invalid, got %s want symptom", ss.Symptom().Name())
+				}
+			},
+		},
+		{
+			name: "SetSymptom with nil",
+			testFunc: func(t *testing.T) {
+				// given
+				ss := NewEmptySymptomNode("symptomSet")
 
-	// then
-	if err == nil {
-		t.Fatalf("add should return an error %v", err)
-	}
-}
+				// when
+				err := ss.SetSymptom(nil)
 
-func TestSymptomTreeNode_AddChild_ShouldAddValidChild(t *testing.T) {
-	t.Parallel()
-	// given
-	ss := NewEmptySymptomNode("symptomSet1")
-	ss2 := NewEmptySymptomNode("symptomSet2")
+				// then
+				if err == nil {
+					t.Fatalf("add should return an error %v", err)
+				}
+			},
+		},
+		{
+			name: "AddChild with valid child",
+			testFunc: func(t *testing.T) {
+				// given
+				ss := NewEmptySymptomNode("symptomSet1")
+				ss2 := NewEmptySymptomNode("symptomSet2")
 
-	// when
-	err := ss.AddChild(ss2)
+				// when
+				err := ss.AddChild(ss2)
 
-	// then
-	if err != nil {
-		t.Fatalf("AddChild shouldn't return an error %v", err)
-	}
-	if len(ss.Children()) != 1 {
-		t.Fatalf("Children length mismatch, got %d want 1", len(ss.Children()))
-	}
-	if _, ok := ss.Children()["symptomSet2"]; !ok {
-		t.Fatalf("Children should contain symptomSet2")
-	}
-	if (ss.Children()["symptomSet2"]).Name() != "symptomSet2" {
-		t.Errorf("Children name invalid, got %s want symptom", (ss.Children()["symptomSet2"]).Name())
-	}
-}
+				// then
+				if err != nil {
+					t.Fatalf("AddChild shouldn't return an error %v", err)
+				}
+				if len(ss.Children()) != 1 {
+					t.Fatalf("Children length mismatch, got %d want 1", len(ss.Children()))
+				}
+				if _, ok := ss.Children()["symptomSet2"]; !ok {
+					t.Fatalf("Children should contain symptomSet2")
+				}
+				if (ss.Children()["symptomSet2"]).Name() != "symptomSet2" {
+					t.Errorf("Children name invalid, got %s want symptom", (ss.Children()["symptomSet2"]).Name())
+				}
+			},
+		},
+		{
+			name: "AddChild with nil",
+			testFunc: func(t *testing.T) {
+				// given
+				ss := NewEmptySymptomNode("symptomSet")
 
-func TestSymptomSet_AddChild_ShouldReturnAnErrorGivenNil(t *testing.T) {
-	t.Parallel()
-	// given
-	ss := NewEmptySymptomNode("symptomSet")
+				// when
+				err := ss.AddChild(nil)
 
-	// when
-	err := ss.AddChild(nil)
+				// then
+				if err == nil {
+					t.Fatalf("add should return an error %v", err)
+				}
+			},
+		},
+		{
+			name: "Match tree errors",
+			testFunc: func(t *testing.T) {
+				trueNode := NewSymptomTreeLeaf("true", &trueSymptom)
+				root := NewSymptomTreeNode("", &trueSymptom, OrCondition)
 
-	// then
-	if err == nil {
-		t.Fatalf("add should return an error %v", err)
+				_, _, err := MatchTree(root, nil)
+				if err == nil {
+					t.Errorf("Matching non-leaf node with no children should return an error")
+				}
+				root = NewSymptomTreeNode("", nil, OrCondition)
+				root.AddChild(trueNode)
+				_, _, err = MatchTree(root, nil)
+				if err == nil {
+					t.Errorf("Matching non-leaf symptom node with nil symptom should return an error")
+				}
+				root = NewSymptomTreeNode("", &trueSymptom, nil)
+				root.AddChild(trueNode)
+				_, _, err = MatchTree(root, nil)
+				if err == nil {
+					t.Errorf("Matching non-leaf node with no callback function should return an error")
+				}
+			},
+		},
+		{
+			name: "Or condition",
+			testFunc: func(t *testing.T) {
+				root := NewSymptomTreeNode("or", &trueSymptom, OrCondition)
+				falseNode := NewSymptomTreeLeaf("false", &falseSymptom)
+				root.AddChild(falseNode)
+				_, matched, err := MatchTree(root, nil)
+				if err != nil {
+					t.Errorf("MatchTree with false child shouldn't return an error %v", err)
+				}
+				if matched {
+					t.Errorf("Tree with or condition and one false Child shouldn't match")
+				}
+				trueNode := NewSymptomTreeLeaf("true", &trueSymptom)
+				root.AddChild(trueNode)
+				_, matched, err = MatchTree(root, nil)
+				if err != nil {
+					t.Errorf("MatchTree with false and true child shouldn't return an error %v", err)
+				}
+				if !matched {
+					t.Errorf("Tree with or condition and false and true child should match")
+				}
+			},
+		},
+		{
+			name: "And condition",
+			testFunc: func(t *testing.T) {
+				root := NewSymptomTreeNode("and", &trueSymptom, AndCondition)
+				trueNode := NewSymptomTreeLeaf("true", &trueSymptom)
+				root.AddChild(trueNode)
+				_, matched, err := MatchTree(root, nil)
+				if err != nil {
+					t.Errorf("MatchTree with false child shouldn't return and error %v", err)
+				}
+				if !matched {
+					t.Errorf("Tree with and condition and true child should match %v", err)
+				}
+				falseNode := NewSymptomTreeLeaf("false", &falseSymptom)
+				root.AddChild(falseNode)
+				_, matched, err = MatchTree(root, nil)
+				if err != nil {
+					t.Errorf("MatchTree with false and true child shouldn't return and error %v", err)
+				}
+				if matched {
+					t.Errorf("Tree with and condition and false and true child shouldn't match")
+				}
+			},
+		},
 	}
-}
 
-func TestMatchTreeErrors(t *testing.T) {
-	t.Parallel()
-	trueNode := NewSymptomTreeLeaf("true", &trueSymptom)
-	root := NewSymptomTreeNode("", &trueSymptom, OrCondition)
-
-	_, _, err := MatchTree(root, nil)
-	if err == nil {
-		t.Errorf("Matching non-leaf node with no children should return an error")
-	}
-	root = NewSymptomTreeNode("", nil, OrCondition)
-	root.AddChild(trueNode)
-	_, _, err = MatchTree(root, nil)
-	if err == nil {
-		t.Errorf("Matching non-leaf symptom node with nil symptom should return an error")
-	}
-	root = NewSymptomTreeNode("", &trueSymptom, nil)
-	root.AddChild(trueNode)
-	_, _, err = MatchTree(root, nil)
-	if err == nil {
-		t.Errorf("Matching non-leaf node with no callback function should return an error")
-	}
-}
-
-func TestOrCondition(t *testing.T) {
-	t.Parallel()
-	root := NewSymptomTreeNode("or", &trueSymptom, OrCondition)
-	falseNode := NewSymptomTreeLeaf("false", &falseSymptom)
-	root.AddChild(falseNode)
-	_, matched, err := MatchTree(root, nil)
-	if err != nil {
-		t.Errorf("MatchTree with false child shouldn't return an error %v", err)
-	}
-	if matched {
-		t.Errorf("Tree with or condition and one false Child shouldn't match")
-	}
-	trueNode := NewSymptomTreeLeaf("true", &trueSymptom)
-	root.AddChild(trueNode)
-	_, matched, err = MatchTree(root, nil)
-	if err != nil {
-		t.Errorf("MatchTree with false and true child shouldn't return an error %v", err)
-	}
-	if !matched {
-		t.Errorf("Tree with or condition and false and true child should match")
-	}
-}
-
-func TestAndCondition(t *testing.T) {
-	root := NewSymptomTreeNode("and", &trueSymptom, AndCondition)
-	trueNode := NewSymptomTreeLeaf("true", &trueSymptom)
-	root.AddChild(trueNode)
-	_, matched, err := MatchTree(root, nil)
-	if err != nil {
-		t.Errorf("MatchTree with false child shouldn't return and error %v", err)
-	}
-	if !matched {
-		t.Errorf("Tree with and condition and true child should match %v", err)
-	}
-	falseNode := NewSymptomTreeLeaf("false", &falseSymptom)
-	root.AddChild(falseNode)
-	_, matched, err = MatchTree(root, nil)
-	if err != nil {
-		t.Errorf("MatchTree with false and true child shouldn't return and error %v", err)
-	}
-	if matched {
-		t.Errorf("Tree with and condition and false and true child shouldn't match")
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			tc.testFunc(t)
+		})
 	}
 }
