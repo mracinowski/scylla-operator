@@ -1,21 +1,25 @@
 package rules
 
 import (
-	"fmt"
+	"regexp"
+	"strings"
+
 	"github.com/scylladb/scylla-operator/pkg/analyze/selector"
 	"github.com/scylladb/scylla-operator/pkg/analyze/symptoms"
 	scyllav1 "github.com/scylladb/scylla-operator/pkg/api/scylla/v1"
 	scyllav1alpha1 "github.com/scylladb/scylla-operator/pkg/api/scylla/v1alpha1"
 	v1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
-	"regexp"
-	"strings"
 )
 
 const (
 	csiDriverContainerName                     = "local-csi-driver"
 	nodeConfigConditionPattern                 = "NodeSetup(?P<node>.*)Degraded"
 	nodeConfigNonexistentVolumeMessageFragment = "resolve RAID device"
+)
+
+var (
+	nodeConfigConditionRegexp = regexp.MustCompile(nodeConfigConditionPattern)
 )
 
 var StorageSymptoms = []symptoms.SymptomTreeNode{
@@ -25,7 +29,7 @@ var StorageSymptoms = []symptoms.SymptomTreeNode{
 }
 
 func buildLocalCsiDriverMissingSymptoms() symptoms.SymptomTreeNode {
-	// Scenario #2: local-csi-driver CSIDriver, referenced by scylladb-local-xfs StorageClass, is missing
+	// local-csi-driver CSIDriver, referenced by scylladb-local-xfs StorageClass, is missing
 	csiDriverMissing := symptoms.NewSymptom("CSIDriver is missing",
 		[]string{"local-csi-driver CSIDriver, referenced by scylladb-local-xfs StorageClass, is missing"},
 		[]string{"deploy local-csi-driver provisioner (or change StorageClass)"},
@@ -74,7 +78,7 @@ func buildLocalCsiDriverMissingSymptoms() symptoms.SymptomTreeNode {
 }
 
 func buildStorageClassMissingSymptoms() symptoms.SymptomTreeNode {
-	// Scenario #1: scylladb-local-xfs StorageClass used by a ScyllaCluster is missing
+	// scylladb-local-xfs StorageClass used by a ScyllaCluster is missing
 	notDeployedStorageClass := symptoms.NewSymptom("StorageClass is missing",
 		[]string{"scylladb-local-xfs StorageClass used by a ScyllaCluster is missing"},
 		[]string{"deploy scylladb-local-xfs StorageClass (or change StorageClass)"},
@@ -149,7 +153,7 @@ func buildStorageClassMissingSymptoms() symptoms.SymptomTreeNode {
 }
 
 func buildNodeConfigSymptoms() symptoms.SymptomTreeNode {
-	// Scenario #4: E2Es for misconfigured NodeConfigs
+	// E2Es for misconfigured NodeConfigs
 	nodeConfigClusterWideNonexistentVolume := symptoms.NewSymptom(
 		"NodeConfig doesn't provision storage for local-csi-driver's volumes-dir",
 		[]string{
@@ -157,7 +161,7 @@ func buildNodeConfigSymptoms() symptoms.SymptomTreeNode {
 			"this may be a false-positive in clusters which don't use NodeConfig to mount `volumes-dir` of local-csi-drivers' Pods",
 		},
 		[]string{
-			"fix the NodeConfig (see node-config's #TODO: node config path# error conditions), then rolling restart local-csi-driver",
+			"fix the NodeConfig (see node-config's error conditions), then rolling restart local-csi-driver",
 		},
 		selector.
 			New().
@@ -257,7 +261,7 @@ func buildNodeConfigSymptoms() symptoms.SymptomTreeNode {
 				return !dirsMounted, nil
 			}))
 
-	// Scenario #4': Detects the non-existent device just by condition logs
+	// Detects the non-existent device just by conditions
 	nodeConfigNonexistentDevice := symptoms.NewSymptom(
 		"NodeConfig non-existent device condition",
 		[]string{"NodeConfig configured with a non-existent device"},
@@ -265,10 +269,8 @@ func buildNodeConfigSymptoms() symptoms.SymptomTreeNode {
 		selector.
 			New().
 			Select("node-config", selector.Type[*scyllav1alpha1.NodeConfig](), func(nc *scyllav1alpha1.NodeConfig) (bool, error) {
-				r := regexp.MustCompile(nodeConfigConditionPattern)
 				for _, cond := range nc.Status.Conditions {
-					t := fmt.Sprintf("%v", cond)
-					match := r.FindStringSubmatch(t)
+					match := nodeConfigConditionRegexp.FindStringSubmatch(cond.Message)
 					if len(match) == 0 {
 						continue
 					}
