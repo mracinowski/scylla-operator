@@ -127,11 +127,7 @@ No resources related to this issue.
 			name:      "No symptom",
 			symptom:   nil,
 			resources: nil,
-			expected: strings.TrimSpace(`
-No symptom
-No resources related to this issue.
----
-`) + "\n",
+			expected:  "",
 		},
 		{
 			name:    "Resources with GVK",
@@ -190,11 +186,7 @@ No resources related to this issue.
 			name:      "Symptoms with diagnoses and suggestions \"Node group\" get ignored",
 			symptom:   symptoms.NewSymptomTreeNodeGroup("test", nil).Symptom(),
 			resources: nil,
-			expected: strings.TrimSpace(`
-No symptom
-No resources related to this issue.
----
-`) + "\n",
+			expected:  "",
 		},
 	}
 

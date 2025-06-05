@@ -34,15 +34,14 @@
 
 
 {{ define "issue" -}}
-    {{- if or (not .Symptom) (and (gt (len .Symptom.Diagnoses) 0) (eq (index .Symptom.Diagnoses 0) "Node group") (gt (len .Symptom.Suggestions) 0) (eq (index .Symptom.Suggestions 0) "Node group")) -}}
-		No symptom {{- "\n" -}}
-	{{- else -}}
+	{{- if and .Symptom (not (and (gt (len .Symptom.Diagnoses) 0) (eq (index .Symptom.Diagnoses 0) "Node group"))) (not ( and (gt (len .Symptom.Suggestions) 0) (eq (index .Symptom.Suggestions 0) "Node group"))) -}}
+
         {{- template "symptom" .Symptom -}}
-	{{- end}}
-	{{- if and (.Resources) (HasValidResources .Resources) -}}
-	    {{- template "resources" .Resources -}}
-	{{- else -}}
-		No resources related to this issue. {{- "\n" -}}
+		{{- if and (.Resources) (HasValidResources .Resources) -}}
+	    	{{- template "resources" .Resources -}}
+		{{- else -}}
+			No resources related to this issue. {{- "\n" -}}
+		{{- end -}}
+		--- {{- "\n" -}}
 	{{- end -}}
-	--- {{- "\n" -}}
 {{- end}}
