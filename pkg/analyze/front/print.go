@@ -9,7 +9,11 @@ import (
 
 //go:embed front.tmpl
 var tmpl_string string
-var tmpl *template.Template
+var tmpl = template.Must(template.New("all").
+	Funcs(template.FuncMap{
+		"HasValidResources": hasValidResources,
+	}).
+	Parse(tmpl_string))
 
 func hasValidResources(resources map[string]any) bool {
 	for _, r := range resources {
@@ -18,14 +22,6 @@ func hasValidResources(resources map[string]any) bool {
 		}
 	}
 	return false
-}
-
-func init() {
-	tmpl = template.Must(template.New("all").
-		Funcs(template.FuncMap{
-			"HasValidResources": hasValidResources,
-		}).
-		Parse(tmpl_string))
 }
 
 func Print(writer io.Writer, issue symptoms.Issue) error {
