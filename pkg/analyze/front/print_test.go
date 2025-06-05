@@ -159,8 +159,8 @@ Suggestions:
 	sugg1
 	sugg2
 Resources GVK:
-	Pod-group/v1, Kind=Pod ()
-	Service-account-group/v1, Kind=Service account ()
+	Pod-group/v1.Pod, pod1
+	Service-account-group/v1.Service account, serviceAccount1
 ---
 `) + "\n",
 		},

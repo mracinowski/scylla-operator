@@ -6,7 +6,16 @@
 			{{- if $value.GetObjectKind.GroupVersionKind.Empty -}}
 				No GVK set {{- "\n" -}}
 			{{- else -}}
-				{{- $value.GetObjectKind.GroupVersionKind.String}} ({{ $value.GetUID }}) {{- "\n" -}}
+				{{- $gvk := $value.GetObjectKind.GroupVersionKind -}}
+				{{- $gvk.Group }}/{{ $gvk.Version }}.{{ $gvk.Kind }}, {{ $value.Namespace -}}
+				{{- if and $value.Namespace $value.Name -}}
+					/
+				{{- end -}}
+				{{- $value.Name -}}
+				{{- if $value.GetUID -}}
+					{{- " " -}} ({{ $value.GetUID }})
+				{{- end -}}
+				{{- "\n" -}}
 			{{- end -}}
 		{{- end -}}
 	{{- end -}}
@@ -35,7 +44,6 @@
 
 {{ define "issue" -}}
 	{{- if and .Symptom (not (and (gt (len .Symptom.Diagnoses) 0) (eq (index .Symptom.Diagnoses 0) "Node group"))) (not ( and (gt (len .Symptom.Suggestions) 0) (eq (index .Symptom.Suggestions 0) "Node group"))) -}}
-
         {{- template "symptom" .Symptom -}}
 		{{- if and (.Resources) (HasValidResources .Resources) -}}
 	    	{{- template "resources" .Resources -}}
