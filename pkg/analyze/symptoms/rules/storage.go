@@ -118,7 +118,7 @@ func buildStorageClassMissingSymptoms() symptoms.SymptomTreeNode {
 				}
 				return !podScheduled && unboundPVC, nil
 			}).
-			Select("csi-driver", selector.Type[*storagev1.CSIDriver](), nil).
+			//Select("csi-driver", selector.Type[*storagev1.CSIDriver](), nil).
 			Select("pod-pvc", selector.Type[*v1.PersistentVolumeClaim](), func(pvc *v1.PersistentVolumeClaim) (bool, error) {
 				return pvc.Status.Phase == v1.ClaimPending, nil
 			}).
@@ -133,9 +133,9 @@ func buildStorageClassMissingSymptoms() symptoms.SymptomTreeNode {
 				}
 				return false, nil
 			}).
-			Relate("storage-class", "csi-driver", func(sc *storagev1.StorageClass, d *storagev1.CSIDriver) (bool, error) {
-				return sc.Provisioner == d.Name, nil
-			}).
+			//Relate("storage-class", "csi-driver", func(sc *storagev1.StorageClass, d *storagev1.CSIDriver) (bool, error) {
+			//	return sc.Provisioner == d.Name, nil
+			//}).
 			Relate("pod-pvc", "scylla-pod", func(pvc *v1.PersistentVolumeClaim, p *v1.Pod) (bool, error) {
 				for _, volume := range p.Spec.Volumes {
 					vPvc := volume.PersistentVolumeClaim
